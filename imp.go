@@ -39,7 +39,8 @@ func main() {
 }
 
 func HomeHandler(rw http.ResponseWriter, r *http.Request) {
-    fmt.Fprintln(rw, "Home")
+	rend := render.New()
+	rend.HTML(rw, http.StatusOK, "login", nil)
 }
 
 func UsersHandler(rw http.ResponseWriter, r *http.Request) {

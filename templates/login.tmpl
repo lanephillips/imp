@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+{{/* TODO: common header */}}
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>IMP: Microblogging Platform</title>
+  </head>
+
+  <body>
+    <h1>Welcome to IMP</h1>
+
+    <h2>Log In</h2>
+  	{{/* TODO: more restful authentication? */}}
+    <form method="POST" action="/login">
+      <div><input type="text" name="name" placeholder="Handle or email"/></div>
+      <div><input type="password" name="password" placeholder="Password"/></div>
+      <div><input type="submit" value="Log In"/></div>
+      {{/* TODO: remember me. forgot password */}}
+    </form>
+
+    <h2>Register New User</h2>
+    <form method="POST" action="/register">
+      <div><input type="text" name="name" placeholder="Handle"/>{{/* TODO: append @host */}}</div>
+      <div><input type="text" name="email" placeholder="Email"/></div>
+      <div><input type="password" name="password" placeholder="Password"/></div>
+      <div><input type="submit" value="Sign Up"/></div>
+    </form>
+  </body>
+</html>
+{{/* TODO: common footer */}}
