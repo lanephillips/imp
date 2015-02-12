@@ -36,12 +36,16 @@ func main() {
     api := r.PathPrefix("/api").Subrouter()
     api.HandleFunc("/user/{id}", UsersHandler)
 
+    // Heroku uses this to specify port
     port := os.Getenv("PORT")
 	if port == "" {
-	  port = "8080"
+		// TODO: this could come from config file
+		port = "8080"
 	}
-	http.ListenAndServe(":"+port, r)
-
+	// TODO: permanently redirect non-SSL to SSL, Chrome actually downloads 7 bytes of something if I use http:
+	// TODO: keyfile locations should be in config file
+	// TODO: we probably want to use this: http://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
+	http.ListenAndServeTLS(":"+port, "server.crt", "server.key", r)
 }
 
 func HomeHandler(rw http.ResponseWriter, r *http.Request) {

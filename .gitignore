@@ -23,3 +23,5 @@ _testmain.go
 *.test
 *.prof
 config.gcfg
+server.crt
+server.key
