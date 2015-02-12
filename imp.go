@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"code.google.com/p/gcfg"
 	"github.com/gorilla/mux"
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
@@ -12,23 +11,15 @@ import (
 	"github.com/unrolled/render"
 )
 
-type Config struct {
-	Database struct {
-		Database string
-		User string
-		Password string
-	}
-}
-
 var cfg Config
 
 func main() {
-	err := gcfg.ReadFileInto(&cfg, "config.gcfg")
+	err := LoadConfigInto(&cfg, "config.gcfg")
 	if err != nil {
 		fmt.Println(err)
-		// TODO: 500
+		// TODO: die
 	}
-	//fmt.Println("loaded config", cfg)
+	// fmt.Println("loaded config", cfg)
 
     r := mux.NewRouter()
     r.HandleFunc("/", HomeHandler)
@@ -39,13 +30,12 @@ func main() {
     // Heroku uses this to specify port
     port := os.Getenv("PORT")
 	if port == "" {
-		// TODO: this could come from config file
-		port = "8080"
+		port = cfg.Server.Port
 	}
 	// TODO: permanently redirect non-SSL to SSL, Chrome actually downloads 7 bytes of something if I use http:
 	// TODO: keyfile locations should be in config file
 	// TODO: we probably want to use this: http://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
-	http.ListenAndServeTLS(":"+port, "server.crt", "server.key", r)
+	http.ListenAndServeTLS(cfg.Server.Host + ":" + port, cfg.Server.Certificate, cfg.Server.Key, r)
 }
 
 func HomeHandler(rw http.ResponseWriter, r *http.Request) {
