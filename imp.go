@@ -21,20 +21,27 @@ func main() {
 	}
 	// fmt.Println("loaded config", cfg)
 
+    // Heroku uses env var to specify port
+    port := os.Getenv("PORT")
+	if port == "" {
+		port = cfg.Server.Port
+	}
+
+	// any requests on the regular HTTP port get automatically redirected to the secure home page
+	// don't just redirect HTTP to HTTPS, because that doesn't train the user to not use HTTP on the first request
+	// TODO: commented out so I can run Apache on 80 on my computer
+	// TODO: this didn't work, maybe I have too many web servers running, also Chrome gets pretty confused with port numbers
+	// go http.ListenAndServe(cfg.Server.Host + ":80", http.HandlerFunc(func (w http.ResponseWriter, req *http.Request) {
+	// 	// TODO: secure app shouldn't have to be at the root of the domain
+	// 	http.Redirect(w, req, "https://" + cfg.Server.Host + ":" + port, http.StatusMovedPermanently)
+	// }))
+
     r := mux.NewRouter()
     r.HandleFunc("/", HomeHandler)
 
     api := r.PathPrefix("/api").Subrouter()
     api.HandleFunc("/user/{id}", UsersHandler)
 
-    // Heroku uses this to specify port
-    port := os.Getenv("PORT")
-	if port == "" {
-		port = cfg.Server.Port
-	}
-	// TODO: permanently redirect non-SSL to SSL, Chrome actually downloads 7 bytes of something if I use http:
-	// TODO: keyfile locations should be in config file
-	// TODO: we probably want to use this: http://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security
 	http.ListenAndServeTLS(cfg.Server.Host + ":" + port, cfg.Server.Certificate, cfg.Server.Key, r)
 }
 
