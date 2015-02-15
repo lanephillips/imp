@@ -18,6 +18,15 @@ func (u *User) Fetch(db *sql.DB, userId int64) {
 	// TODO: 
 }
 
+func (u *User) Save(db *sql.DB) {
+	if u.UserId > 0 {
+
+	} else {
+		
+	}
+	// TODO: 
+}
+
 // TODO: filters
 func QueryUsers(db *sql.DB) (users []*User) {
 	rows, err := db.Query("SELECT `UserId`, `Handle`, `Status`, `Biography`, `JoinedDate` FROM `User` WHERE 1")	// TODO: user id
