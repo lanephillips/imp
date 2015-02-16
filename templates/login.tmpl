@@ -12,6 +12,7 @@
     <h2>Log In</h2>
   	{{/* TODO: more restful authentication? */}}
     <form method="POST" action="/login">
+      <input type="hidden" name="source" value="browser"/>
       <div><input type="text" name="name" placeholder="Handle or email"/></div>
       <div><input type="password" name="password" placeholder="Password"/></div>
       <div><input type="submit" value="Log In"/></div>
@@ -19,8 +20,9 @@
     </form>
 
     <h2>Register New User</h2>
-    <form method="POST" action="/register">
-      <div><input type="text" name="name" placeholder="Handle"/>{{/* TODO: append @host */}}</div>
+    <form method="POST" action="/api/user">
+      <input type="hidden" name="source" value="browser"/>
+      <div><input type="text" name="name" placeholder="Handle"/>{{/* TODO: append @host */}} </div>
       <div><input type="text" name="email" placeholder="Email"/></div>
       <div><input type="password" name="password" placeholder="Password"/></div>
       <div><input type="submit" value="Sign Up"/></div>
