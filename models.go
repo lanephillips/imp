@@ -11,10 +11,12 @@ type User struct {
 	Handle string
 	Status string
 	Biography string
+	Email string
+	PasswordHash string
 	JoinedDate mysql.NullTime
 }
 
-func (u *User) Fetch(db *sql.DB, handle string) {
+func (u *User) Fetch(db *sql.DB, handle string) (err error) {
     u.UserId = -1
 
 	stmt, err := db.Prepare("SELECT `UserId`, `Handle`, `Status`, `Biography`, `JoinedDate` FROM `User` WHERE Handle LIKE ? LIMIT 1")
@@ -41,13 +43,14 @@ func (u *User) Fetch(db *sql.DB, handle string) {
 	return
 }
 
-func (u *User) Save(db *sql.DB) {
+func (u *User) Save(db *sql.DB) (err error) {
 	if u.UserId > 0 {
 
 	} else {
 
 	}
 	// TODO: 
+	return
 }
 
 // TODO: filters
