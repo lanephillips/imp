@@ -13,6 +13,19 @@ import (
 
 var cfg Config
 
+func sendError(rw http.ResponseWriter, status int, message string) {
+	envelope := map[string]interface{}{
+		"errors": [1]interface{}{
+			map[string]interface{}{
+				"status": fmt.Sprintf("%d",status),
+				"title": message,
+				"detail": message,
+			},
+		},
+	}
+	render.New().JSON(rw, status, envelope)
+}
+
 func sendData(rw http.ResponseWriter, status int, data interface{}) {
 	envelope := map[string]interface{}{
 		"data": data,
@@ -61,14 +74,12 @@ func main() {
     api := r.PathPrefix("/api").Subrouter()
 
     api.HandleFunc("/user", func (rw http.ResponseWriter, r *http.Request) {
-		rend := render.New()
-
     	r.ParseForm()
 
     	handle := r.PostFormValue("handle")
     	if len(handle) == 0 {
 			fmt.Println("Missing handle.")
-	    	rend.Data(rw, http.StatusBadRequest, []byte("Missing handle."))
+	    	sendError(rw, http.StatusBadRequest, "Missing handle.")
 			return
     	}
 
@@ -76,7 +87,7 @@ func main() {
     	email := r.PostFormValue("email")
     	if len(email) == 0 {
 			fmt.Println("Missing email.")
-	    	rend.Data(rw, http.StatusBadRequest, []byte("Missing email."))
+	    	sendError(rw, http.StatusBadRequest, "Missing email.")
 			return
     	}
 
@@ -84,7 +95,7 @@ func main() {
     	password := r.PostFormValue("password")
     	if len(password) == 0 {
 			fmt.Println("Missing password.")
-	    	rend.Data(rw, http.StatusBadRequest, []byte("Missing password."))
+	    	sendError(rw, http.StatusBadRequest, "Missing password.")
 			return
     	}
 
@@ -93,21 +104,21 @@ func main() {
 	    err = u.Fetch(db, handle)
 		if err != nil {
 			fmt.Println(err)
-			rend.JSON(rw, http.StatusInternalServerError, err)
+			sendError(rw, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 	    if u.UserId > 0 {
 			fmt.Println("Handle already in use.")
 	    	// TODO: we need to define a regular envelope format
-	    	rend.Data(rw, http.StatusConflict, []byte("That handle is already in use."))
+	    	sendError(rw, http.StatusConflict, "That handle is already in use.")
 			return
 	    }
 
 	    hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
 			fmt.Println(err)
-			rend.JSON(rw, http.StatusInternalServerError, err)
+			sendError(rw, http.StatusInternalServerError, err.Error())
 			return
 		}
 
@@ -120,7 +131,7 @@ func main() {
 	    err = u.Save(db)
 		if err != nil {
 			fmt.Println(err)
-			rend.JSON(rw, http.StatusInternalServerError, err)
+			sendError(rw, http.StatusInternalServerError, err.Error())
 			return
 		}
 
