@@ -13,6 +13,13 @@ import (
 
 var cfg Config
 
+func sendData(rw http.ResponseWriter, status int, data interface{}) {
+	envelope := map[string]interface{}{
+		"data": data,
+	}
+	render.New().JSON(rw, status, envelope)
+}
+
 func main() {
 	err := LoadConfigInto(&cfg, "config.gcfg")
 	if err != nil {
@@ -118,7 +125,7 @@ func main() {
 		}
 
 		// TODO: auth
-		rend.JSON(rw, http.StatusCreated, u)
+		sendData(rw, http.StatusCreated, u)
 	}).Methods("POST")
 
     api.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
