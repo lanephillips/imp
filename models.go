@@ -14,15 +14,38 @@ type User struct {
 	JoinedDate mysql.NullTime
 }
 
-func (u *User) Fetch(db *sql.DB, userId int64) {
-	// TODO: 
+func (u *User) Fetch(db *sql.DB, handle string) {
+    u.UserId = -1
+
+	stmt, err := db.Prepare("SELECT `UserId`, `Handle`, `Status`, `Biography`, `JoinedDate` FROM `User` WHERE Handle LIKE ? LIMIT 1")
+	if err != nil {
+	    log.Fatal(err)
+	    return
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(handle)
+	if err != nil {
+	    log.Fatal(err)
+	    return
+	}
+
+	if rows.Next() {
+	    if err := rows.Scan(&u.UserId, &u.Handle, &u.Status, &u.Biography, &u.JoinedDate); err != nil {
+	        log.Fatal(err)
+	    }
+	}
+	if err := rows.Err(); err != nil {
+	    log.Fatal(err)
+	}
+	return
 }
 
 func (u *User) Save(db *sql.DB) {
 	if u.UserId > 0 {
 
 	} else {
-		
+
 	}
 	// TODO: 
 }

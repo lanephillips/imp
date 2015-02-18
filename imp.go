@@ -56,39 +56,42 @@ func main() {
     	// TODO: validate and create user
 	}).Methods("POST")
 
-    api.HandleFunc("/user/{id}", func (rw http.ResponseWriter, r *http.Request) {
-	    id := mux.Vars(r)["id"]
+    api.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
+	    handle := mux.Vars(r)["handle"]
 
-	    users := QueryUsers(db)
+	    var u User
+	    u.Fetch(db, handle)
 
 		rend := render.New()
-	    rend.JSON(rw, http.StatusOK, users)
+	    rend.JSON(rw, http.StatusOK, u)
 
-	    fmt.Fprintln(rw, "showing user", id)
+	    fmt.Fprintln(rw, "showing user", handle)
 	}).Methods("GET")
 
-    api.HandleFunc("/user/{id}", func (rw http.ResponseWriter, r *http.Request) {
+    api.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
     	// TODO: update user
-	    id := mux.Vars(r)["id"]
+	    handle := mux.Vars(r)["handle"]
 
-	    users := QueryUsers(db)
+	    var u User
+	    u.Fetch(db, handle)
 
 		rend := render.New()
-	    rend.JSON(rw, http.StatusOK, users)
+	    rend.JSON(rw, http.StatusOK, u)
 
-	    fmt.Fprintln(rw, "showing user", id)
+	    fmt.Fprintln(rw, "showing user", handle)
 	}).Methods("PUT")
 
-    api.HandleFunc("/user/{id}", func (rw http.ResponseWriter, r *http.Request) {
+    api.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
     	// TODO: delete user
-	    id := mux.Vars(r)["id"]
+	    handle := mux.Vars(r)["handle"]
 
-	    users := QueryUsers(db)
+	    var u User
+	    u.Fetch(db, handle)
 
 		rend := render.New()
-	    rend.JSON(rw, http.StatusOK, users)
+	    rend.JSON(rw, http.StatusOK, u)
 
-	    fmt.Fprintln(rw, "showing user", id)
+	    fmt.Fprintln(rw, "showing user", handle)
 	}).Methods("DELETE")
 
 	http.ListenAndServeTLS(cfg.Server.Host + ":" + port, cfg.Server.Certificate, cfg.Server.Key, r)
