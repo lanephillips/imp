@@ -9,6 +9,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/unrolled/render"
 	"golang.org/x/crypto/bcrypt"
+	"net/mail"
 )
 
 var cfg Config
@@ -83,11 +84,10 @@ func main() {
 			return
     	}
 
-	    // TODO: validate email
-    	email := r.PostFormValue("email")
-    	if len(email) == 0 {
-			fmt.Println("Missing email.")
-	    	sendError(rw, http.StatusBadRequest, "Missing email.")
+    	email, err := mail.ParseAddress(r.PostFormValue("email"))
+    	if err != nil {
+			fmt.Println(err)
+	    	sendError(rw, http.StatusBadRequest, "Invalid email address.")
 			return
     	}
 
@@ -110,7 +110,6 @@ func main() {
 
 	    if u.UserId > 0 {
 			fmt.Println("Handle already in use.")
-	    	// TODO: we need to define a regular envelope format
 	    	sendError(rw, http.StatusConflict, "That handle is already in use.")
 			return
 	    }
@@ -124,7 +123,7 @@ func main() {
 
 	    u.UserId = -1
 	    u.Handle = handle
-	    u.Email = email
+	    u.Email = email.Address
 	    u.PasswordHash = string(hash)
 		fmt.Println(u)
 
