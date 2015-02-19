@@ -8,3 +8,10 @@ key =
 database = imp
 user = imp
 password = PASSWORD
+
+[mail]
+name =
+address =
+user =
+host =
+password =

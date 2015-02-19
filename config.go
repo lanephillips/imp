@@ -14,6 +14,13 @@ type Config struct {
 		User string
 		Password string
 	}
+	Mail struct {
+		Name string
+		Address string
+		User string
+		Host string
+		Password string
+	}
 }
 
 func LoadConfigInto(config *Config, file string) (err error) {
