@@ -124,6 +124,8 @@ func main() {
 	    u.UserId = -1
 	    u.Handle = handle
 	    u.Email = email.Address
+	    u.Status = ""
+	    u.Biography = ""
 	    u.PasswordHash = string(hash)
 		fmt.Println(u)
 
