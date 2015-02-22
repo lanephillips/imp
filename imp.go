@@ -136,8 +136,22 @@ func main() {
 			return
 		}
 
-		// TODO: auth
-		sendData(rw, http.StatusCreated, u)
+		// go ahead and log user in
+		var t UserToken
+		t.UserId = u.UserId
+
+		err = t.Save(db)
+		if err != nil {
+			fmt.Println(err)
+			// something went wrong, but at least we created the user, so don't die here
+		}
+
+		resp := map[string]interface{}{
+			"user": u,
+			"token": t.Token,
+		}
+
+		sendData(rw, http.StatusCreated, resp)
 	}).Methods("POST")
 
     api.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
