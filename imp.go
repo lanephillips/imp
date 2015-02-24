@@ -192,6 +192,20 @@ func main() {
 	    fmt.Fprintln(rw, "showing user", handle)
 	}).Methods("DELETE")
 
+    api.HandleFunc("/token/{token}", func (rw http.ResponseWriter, r *http.Request) {
+		var t UserToken
+	    t.Token = mux.Vars(r)["token"]
+
+	    err := t.Delete(db)
+		if err != nil {
+			fmt.Println(err)
+			sendError(rw, http.StatusInternalServerError, err.Error())
+			return
+		}
+		// TODO: is it silly to send "No Content" along with an evelope?
+		sendData(rw, http.StatusNoContent, "")
+	}).Methods("DELETE")
+
 	http.ListenAndServeTLS(cfg.Server.Host + ":" + port, cfg.Server.Certificate, cfg.Server.Key, r)
 }
 
