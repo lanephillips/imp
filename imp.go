@@ -205,6 +205,62 @@ func main() {
 	    fmt.Fprintln(rw, "showing user", handle)
 	}).Methods("DELETE")
 
+    api.HandleFunc("/token", func (rw http.ResponseWriter, r *http.Request) {
+    	r.ParseForm()
+
+    	handleOrEmail := r.PostFormValue("handleOrEmail")
+    	if len(handleOrEmail) == 0 {
+			fmt.Println("Missing handle or email.")
+	    	sendError(rw, http.StatusBadRequest, "Missing handle or email.")
+			return
+    	}
+
+    	password := r.PostFormValue("password")
+    	if len(password) == 0 {
+			fmt.Println("Missing password.")
+	    	sendError(rw, http.StatusBadRequest, "Missing password.")
+			return
+    	}
+
+	    var u User
+	    err = u.Fetch(db, handleOrEmail)
+		if err != nil {
+			fmt.Println(err)
+			sendError(rw, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		pwErr := "No user was found that matched the handle or email and password given."
+	    if u.UserId <= 0 {
+			fmt.Println("User not found.")
+	    	sendError(rw, http.StatusUnauthorized, pwErr)
+			return
+	    }
+
+	    err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
+		if err != nil {
+			fmt.Println("Bad password.")
+	    	sendError(rw, http.StatusUnauthorized, pwErr)
+			return
+		}
+
+		var t UserToken
+		t.UserId = u.UserId
+
+		err = t.Save(db)
+		if err != nil {
+			sendError(rw, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		resp := map[string]interface{}{
+			"user": u,
+			"token": t.Token,
+		}
+
+		sendData(rw, http.StatusCreated, resp)
+	}).Methods("POST")
+
     api.HandleFunc("/token/{token}", func (rw http.ResponseWriter, r *http.Request) {
 		var t UserToken
 	    t.Token = mux.Vars(r)["token"]
