@@ -29,17 +29,19 @@ type UserToken struct {
 	LastSeenTime mysql.NullTime
 }
 
-func (u *User) Fetch(db *sql.DB, handle string) (err error) {
+// TODO: not sure if this is the right way to search both handle and email
+func (u *User) Fetch(db *sql.DB, handleOrEmail string) (err error) {
     u.UserId = -1
 
-	stmt, err := db.Prepare("SELECT `UserId`, `Handle`, `Status`, `Biography`, `JoinedDate` FROM `User` WHERE Handle LIKE ? LIMIT 1")
+	stmt, err := db.Prepare("SELECT `UserId`, `Handle`, `Status`, `Biography`, `JoinedDate` FROM `User` " +
+		"WHERE Handle LIKE ? OR Email LIKE ? LIMIT 1")
 	if err != nil {
 	    log.Println(err)
 	    return err
 	}
 	defer stmt.Close()
 
-	rows, err := stmt.Query(handle)
+	rows, err := stmt.Query(handleOrEmail, handleOrEmail)
 	if err != nil {
 	    log.Println(err)
 	    return err

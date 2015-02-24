@@ -114,6 +114,19 @@ func main() {
 			return
 	    }
 
+	    err = u.Fetch(db, email.Address)
+		if err != nil {
+			fmt.Println(err)
+			sendError(rw, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+	    if u.UserId > 0 {
+			fmt.Println("Email already in use.")
+	    	sendError(rw, http.StatusConflict, "That email address is already in use.")
+			return
+	    }
+
 	    hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
 			fmt.Println(err)
