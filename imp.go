@@ -235,6 +235,23 @@ func main() {
 			return
     	}
 
+		ip := getIP(r)
+		// fmt.Println("client ip is", ip)
+
+		// rate limit by ip
+		var ipLimit IPLimit
+    	err = ipLimit.Fetch(db, ip)
+		if err != nil {
+			fmt.Println(err)
+			sendError(rw, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if ipLimit.LastLoginAttemptDate.Valid && time.Now().Before(ipLimit.LastLoginAttemptDate.Time.Add(time.Duration(SecondsBetweenLoginAttemptsPerIP) * time.Second)) {
+			fmt.Println("Too many login attempts from this address.", ipLimit)
+			sendError(rw, 429, "Too many login attempts from this address.")
+			return
+		}
+
     	// rate limit by handle even if it's not a real handle, because otherwise we would reveal its existence
     	var limit HandleLimit
     	err = limit.Fetch(db, handleOrEmail)
@@ -243,14 +260,11 @@ func main() {
 			sendError(rw, http.StatusInternalServerError, err.Error())
 			return
 		}
-		if limit.LoginAttemptCount > 0 && limit.LastAttemptDate.Time.Unix() + limit.NextLoginDelay > time.Now().Unix() {
+		if limit.LoginAttemptCount > 0 && time.Now().Before(limit.LastAttemptDate.Time.Add(time.Duration(limit.NextLoginDelay) * time.Second)) {
 			fmt.Println("Too many login attempts.", limit)
 			sendError(rw, 429, "Too many login attempts.")
 			return
 		}
-
-		ip := getIP(r)
-		fmt.Println("client ip is", ip)
 
 	    var u User
 	    err = u.Fetch(db, handleOrEmail)
@@ -272,6 +286,10 @@ func main() {
 	    err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
 		if err != nil || u.UserId <= 0 {
 	    	err = limit.Bump(db)
+			if err != nil {
+				fmt.Println(err)
+			}
+	    	err = ipLimit.LogAttempt(db)
 			if err != nil {
 				fmt.Println(err)
 			}

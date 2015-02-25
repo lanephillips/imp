@@ -43,7 +43,10 @@ type IPLimit struct {
 	CountResetDate mysql.NullTime
 }
 
-const NewUsersPerIPPerDay = 24
+const (
+	NewUsersPerIPPerDay = 24
+	SecondsBetweenLoginAttemptsPerIP = 1
+)
 
 // TODO: not sure if this is the right way to search both handle and email
 // TODO: we really need to use sqlx instead of this ORM style
