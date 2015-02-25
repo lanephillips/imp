@@ -1,16 +1,19 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"os"
-	"github.com/gorilla/mux"
 	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/unrolled/render"
+	"fmt"
 	"golang.org/x/crypto/bcrypt"
+	"net"
+	"net/http"
 	"net/mail"
+	"os"
+	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/unrolled/render"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var cfg Config
@@ -33,6 +36,15 @@ func sendData(rw http.ResponseWriter, status int, data interface{}) {
 		"data": data,
 	}
 	render.New().JSON(rw, status, envelope)
+}
+
+func getIP(r *http.Request) string {
+    if ipProxy := r.Header.Get("X-Forwarded-For"); len(ipProxy) > 0 {
+    	ips := strings.Split(ipProxy, ", ")
+        return ips[0]
+    }
+    ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+    return ip
 }
 
 func main() {
@@ -236,6 +248,9 @@ func main() {
 			sendError(rw, 429, "Too many login attempts.")
 			return
 		}
+
+		ip := getIP(r)
+		fmt.Println("client ip is", ip)
 
 	    var u User
 	    err = u.Fetch(db, handleOrEmail)
