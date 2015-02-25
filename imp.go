@@ -245,29 +245,24 @@ func main() {
 			return
 		}
 
-		// TODO: bad user fails more quickly than bad password
-		// TODO: solution? check against dummy hash and then fail
-		pwErr := "No user was found that matched the handle or email and password given."
 	    if u.UserId <= 0 {
-	    	err = limit.Bump(db)
-			if err != nil {
-				fmt.Println(err)
-			}
+	    	// in order to prevent not found user failing more quickly than bad password
+	    	// proceed with checking password against dummy hash
 
-			fmt.Println("User not found.")
-	    	sendError(rw, http.StatusUnauthorized, pwErr)
-			return
+		    // dummy, _ := bcrypt.GenerateFromPassword([]byte(RandomString(50)), bcrypt.DefaultCost)
+		    // fmt.Println("dummy hash: ", string(dummy))
+	    	u.PasswordHash = "$2a$10$tg.SM/VMqShumLh/uhB1BOCFcQyCIBu4XvBf7lszBw2lMew1ubNWq"
 	    }
 
 	    err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
-		if err != nil {
+		if err != nil || u.UserId <= 0 {
 	    	err = limit.Bump(db)
 			if err != nil {
 				fmt.Println(err)
 			}
 
-			fmt.Println("Bad password.")
-	    	sendError(rw, http.StatusUnauthorized, pwErr)
+			fmt.Println("Bad credentials.")
+	    	sendError(rw, http.StatusUnauthorized, "No user was found that matched the handle or email and password given.")
 			return
 		}
 		limit.Clear(db)
