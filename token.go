@@ -2,7 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
+	"github.com/gorilla/mux"
 	"github.com/go-sql-driver/mysql"
+	"golang.org/x/crypto/bcrypt"
+	"net/http"
 	"log"
 	"time"
 	"crypto/rand"
@@ -13,6 +17,119 @@ type UserToken struct {
 	UserId int64
 	LoginTime mysql.NullTime
 	LastSeenTime mysql.NullTime
+}
+
+func PostToken(rw http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+
+	handleOrEmail := r.PostFormValue("handleOrEmail")
+	if len(handleOrEmail) == 0 {
+		fmt.Println("Missing handle or email.")
+    	sendError(rw, http.StatusBadRequest, "Missing handle or email.")
+		return
+	}
+
+	password := r.PostFormValue("password")
+	if len(password) == 0 {
+		fmt.Println("Missing password.")
+    	sendError(rw, http.StatusBadRequest, "Missing password.")
+		return
+	}
+
+	ip := getIP(r)
+	// fmt.Println("client ip is", ip)
+
+	// rate limit by ip
+	var ipLimit IPLimit
+	err := ipLimit.Fetch(db, ip)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if ipLimit.LastLoginAttemptDate.Valid && time.Now().Before(ipLimit.LastLoginAttemptDate.Time.Add(time.Duration(SecondsBetweenLoginAttemptsPerIP) * time.Second)) {
+		fmt.Println("Too many login attempts from this address.", ipLimit)
+		sendError(rw, 429, "Too many login attempts from this address.")
+		return
+	}
+
+	// rate limit by handle even if it's not a real handle, because otherwise we would reveal its existence
+	var limit HandleLimit
+	err = limit.Fetch(db, handleOrEmail)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if limit.LoginAttemptCount > 0 && time.Now().Before(limit.LastAttemptDate.Time.Add(time.Duration(limit.NextLoginDelay) * time.Second)) {
+		fmt.Println("Too many login attempts.", limit)
+		sendError(rw, 429, "Too many login attempts.")
+		return
+	}
+
+    var u User
+    err = u.Fetch(db, handleOrEmail)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+    if u.UserId <= 0 {
+    	// in order to prevent not found user failing more quickly than bad password
+    	// proceed with checking password against dummy hash
+
+	    // dummy, _ := bcrypt.GenerateFromPassword([]byte(RandomString(50)), bcrypt.DefaultCost)
+	    // fmt.Println("dummy hash: ", string(dummy))
+    	u.PasswordHash = "$2a$10$tg.SM/VMqShumLh/uhB1BOCFcQyCIBu4XvBf7lszBw2lMew1ubNWq"
+    }
+
+    err = bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
+	if err != nil || u.UserId <= 0 {
+    	err = limit.Bump(db)
+		if err != nil {
+			fmt.Println(err)
+		}
+    	err = ipLimit.LogAttempt(db)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Println("Bad credentials.")
+    	sendError(rw, http.StatusUnauthorized, "No user was found that matched the handle or email and password given.")
+		return
+	}
+	limit.Clear(db)
+
+	var t UserToken
+	t.UserId = u.UserId
+
+	err = t.Save(db)
+	if err != nil {
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	resp := map[string]interface{}{
+		"user": u,
+		"token": t.Token,
+	}
+
+	sendData(rw, http.StatusCreated, resp)
+}
+
+func DeleteToken(rw http.ResponseWriter, r *http.Request) {
+	var t UserToken
+    t.Token = mux.Vars(r)["token"]
+
+    err := t.Delete(db)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// TODO: is it silly to send "No Content" along with an evelope?
+	sendData(rw, http.StatusNoContent, "")
 }
 
 // TODO: DRY out this repeated fetch and save code, sqlx might help
