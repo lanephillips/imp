@@ -33,7 +33,7 @@ type UserToken struct {
 func (u *User) Fetch(db *sql.DB, handleOrEmail string) (err error) {
     u.UserId = -1
 
-	stmt, err := db.Prepare("SELECT `UserId`, `Handle`, `Status`, `Biography`, `JoinedDate` FROM `User` " +
+	stmt, err := db.Prepare("SELECT `UserId`, `Handle`, `Status`, `Biography`, `PasswordHash`, `JoinedDate` FROM `User` " +
 		"WHERE Handle LIKE ? OR Email LIKE ? LIMIT 1")
 	if err != nil {
 	    log.Println(err)
@@ -48,7 +48,7 @@ func (u *User) Fetch(db *sql.DB, handleOrEmail string) (err error) {
 	}
 
 	if rows.Next() {
-	    if err := rows.Scan(&u.UserId, &u.Handle, &u.Status, &u.Biography, &u.JoinedDate); err != nil {
+	    if err := rows.Scan(&u.UserId, &u.Handle, &u.Status, &u.Biography, &u.PasswordHash, &u.JoinedDate); err != nil {
 	        log.Println(err)
 	    }
 	}
