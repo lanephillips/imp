@@ -36,6 +36,15 @@ type HandleLimit struct {
 	NextLoginDelay int64
 }
 
+type IPLimit struct {
+	IP string
+	LastLoginAttemptDate mysql.NullTime
+	UsersAllowedCount int64
+	CountResetDate mysql.NullTime
+}
+
+const NewUsersPerIPPerDay = 24
+
 // TODO: not sure if this is the right way to search both handle and email
 // TODO: we really need to use sqlx instead of this ORM style
 func (u *User) Fetch(db *sql.DB, handleOrEmail string) (err error) {
@@ -294,6 +303,104 @@ func (h *HandleLimit) Clear(db *sql.DB) (err error) {
 	defer stmt.Close()
 
 	result, err := stmt.Exec(h.Handle)
+    if err != nil {
+	    log.Println(err)
+	    return err
+    }
+
+    count, err := result.RowsAffected()
+    if err != nil {
+	    log.Println(err)
+	    return err
+    }
+    if count != 1 {
+    	log.Println("Expected to update 1 row, not %d", count)
+    }
+	return nil
+}
+
+func (h *IPLimit) Fetch(db *sql.DB, ip string) (err error) {
+    h.IP = ip
+    h.UsersAllowedCount = NewUsersPerIPPerDay
+
+	stmt, err := db.Prepare("SELECT `LastLoginAttemptDate`, `UsersAllowedCount`, `CountResetDate` FROM `IPLimit` WHERE `IP` LIKE ?")
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(ip)
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+
+	if rows.Next() {
+	    if err := rows.Scan(&h.LastLoginAttemptDate, &h.UsersAllowedCount, &h.CountResetDate); err != nil {
+	        log.Println(err)
+	    }
+	}
+	if err := rows.Err(); err != nil {
+	    log.Println(err)
+	}
+	return err
+}
+
+func (h *IPLimit) LogAttempt(db *sql.DB) (err error) {
+	h.LastLoginAttemptDate.Time = time.Now()
+	h.LastLoginAttemptDate.Valid = true
+
+	stmt, err := db.Prepare("INSERT INTO `IPLimit` (`IP`, `LastLoginAttemptDate`, `UsersAllowedCount`) " +
+		"VALUES (?, ?, ?) " +
+		"ON DUPLICATE KEY UPDATE `LastLoginAttemptDate` = VALUES(`LastLoginAttemptDate`)")
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(h.IP, h.LastLoginAttemptDate, NewUsersPerIPPerDay)
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+	return nil
+}
+
+func (h *IPLimit) LogNewUser(db *sql.DB) (err error) {
+	h.UsersAllowedCount -= 1
+	if !h.CountResetDate.Valid || h.CountResetDate.Time.Before(time.Now()) {
+		h.CountResetDate.Time = time.Now().Add(24 * time.Hour)
+		h.CountResetDate.Valid = true
+	}
+
+	stmt, err := db.Prepare("INSERT INTO `IPLimit` (`IP`, `UsersAllowedCount`, `CountResetDate`) " +
+		"VALUES (?, ?, ?) " +
+		"ON DUPLICATE KEY UPDATE `UsersAllowedCount` = VALUES(`UsersAllowedCount`), `CountResetDate` = VALUES(`CountResetDate`)")
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(h.IP, h.UsersAllowedCount, h.CountResetDate)
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+	return nil
+}
+
+func (h *IPLimit) Clear(db *sql.DB) (err error) {
+	stmt, err := db.Prepare("DELETE FROM `IPLimit` WHERE IP LIKE ?")
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+	defer stmt.Close()
+
+	result, err := stmt.Exec(h.IP)
     if err != nil {
 	    log.Println(err)
 	    return err
