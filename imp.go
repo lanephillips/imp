@@ -88,6 +88,23 @@ func main() {
     api := r.PathPrefix("/api").Subrouter()
 
     api.HandleFunc("/user", func (rw http.ResponseWriter, r *http.Request) {
+		ip := getIP(r)
+		// fmt.Println("client ip is", ip)
+
+		// rate limit new user creation by ip
+		var ipLimit IPLimit
+    	err = ipLimit.Fetch(db, ip)
+		if err != nil {
+			fmt.Println(err)
+			sendError(rw, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if ipLimit.UsersAllowedCount <= 0 && ipLimit.CountResetDate.Valid && time.Now().Before(ipLimit.CountResetDate.Time) {
+			fmt.Println("Too many new user accounts from this address.", ipLimit)
+			sendError(rw, 429, "Too many new user accounts from this address.")
+			return
+		}
+
     	r.ParseForm()
 
     	handle := r.PostFormValue("handle")
@@ -171,6 +188,7 @@ func main() {
 			fmt.Println(err)
 			// something went wrong, but at least we created the user, so don't die here
 		}
+		ipLimit.LogNewUser(db)
 
 		resp := map[string]interface{}{
 			"user": u,

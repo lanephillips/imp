@@ -372,10 +372,12 @@ func (h *IPLimit) LogAttempt(db *sql.DB) (err error) {
 }
 
 func (h *IPLimit) LogNewUser(db *sql.DB) (err error) {
-	h.UsersAllowedCount -= 1
 	if !h.CountResetDate.Valid || h.CountResetDate.Time.Before(time.Now()) {
 		h.CountResetDate.Time = time.Now().Add(24 * time.Hour)
 		h.CountResetDate.Valid = true
+		h.UsersAllowedCount = NewUsersPerIPPerDay - 1
+	} else {
+		h.UsersAllowedCount -= 1
 	}
 
 	stmt, err := db.Prepare("INSERT INTO `IPLimit` (`IP`, `UsersAllowedCount`, `CountResetDate`) " +
