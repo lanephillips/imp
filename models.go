@@ -29,7 +29,15 @@ type UserToken struct {
 	LastSeenTime mysql.NullTime
 }
 
+type HandleLimit struct {
+	Handle string
+	LoginAttemptCount int64
+	LastAttemptDate mysql.NullTime
+	NextLoginDelay int64
+}
+
 // TODO: not sure if this is the right way to search both handle and email
+// TODO: we really need to use sqlx instead of this ORM style
 func (u *User) Fetch(db *sql.DB, handleOrEmail string) (err error) {
     u.UserId = -1
 
@@ -224,4 +232,81 @@ func RandomString(strSize int) string {
 	     bytes[k] = dictionary[v % byte(len(dictionary))]
 	}
 	return string(bytes)
- }
+}
+
+func (h *HandleLimit) Fetch(db *sql.DB, handle string) (err error) {
+    h.Handle = handle
+
+	stmt, err := db.Prepare("SELECT `LoginAttemptCount`, `LastAttemptDate`, `NextLoginDelay` FROM `HandleLimit` WHERE `Handle` LIKE ?")
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query(handle)
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+
+	if rows.Next() {
+	    if err := rows.Scan(&h.LoginAttemptCount, &h.LastAttemptDate, &h.NextLoginDelay); err != nil {
+	        log.Println(err)
+	    }
+	}
+	if err := rows.Err(); err != nil {
+	    log.Println(err)
+	}
+	return err
+}
+
+func (h *HandleLimit) Bump(db *sql.DB) (err error) {
+	h.LoginAttemptCount = 1
+	h.LastAttemptDate.Time = time.Now()
+	h.LastAttemptDate.Valid = true
+	h.NextLoginDelay = 1
+
+	stmt, err := db.Prepare("INSERT INTO `HandleLimit` (`Handle`, `LoginAttemptCount`, `LastAttemptDate`, `NextLoginDelay`) " +
+		"VALUES (?, ?, ?, ?) " +
+		"ON DUPLICATE KEY UPDATE `LoginAttemptCount` = `LoginAttemptCount` + 1, `NextLoginDelay` = 2 * `NextLoginDelay`, " +
+		"`LastAttemptDate` = VALUES(`LastAttemptDate`)")
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(h.Handle, h.LoginAttemptCount, h.LastAttemptDate, h.NextLoginDelay)
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+	return nil
+}
+
+func (h *HandleLimit) Clear(db *sql.DB) (err error) {
+	stmt, err := db.Prepare("DELETE FROM `HandleLimit` WHERE Handle LIKE ?")
+	if err != nil {
+	    log.Println(err)
+	    return err
+	}
+	defer stmt.Close()
+
+	result, err := stmt.Exec(h.Handle)
+    if err != nil {
+	    log.Println(err)
+	    return err
+    }
+
+    count, err := result.RowsAffected()
+    if err != nil {
+	    log.Println(err)
+	    return err
+    }
+    if count != 1 {
+    	log.Println("Expected to update 1 row, not %d", count)
+    }
+	return nil
+}
+

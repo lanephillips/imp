@@ -10,6 +10,7 @@ import (
 	"github.com/unrolled/render"
 	"golang.org/x/crypto/bcrypt"
 	"net/mail"
+	"time"
 )
 
 var cfg Config
@@ -222,6 +223,20 @@ func main() {
 			return
     	}
 
+    	// rate limit by handle even if it's not a real handle, because otherwise we would reveal its existence
+    	var limit HandleLimit
+    	err = limit.Fetch(db, handleOrEmail)
+		if err != nil {
+			fmt.Println(err)
+			sendError(rw, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if limit.LoginAttemptCount > 0 && limit.LastAttemptDate.Time.Unix() + limit.NextLoginDelay > time.Now().Unix() {
+			fmt.Println("Too many login attempts.", limit)
+			sendError(rw, 429, "Too many login attempts.")
+			return
+		}
+
 	    var u User
 	    err = u.Fetch(db, handleOrEmail)
 		if err != nil {
@@ -230,8 +245,15 @@ func main() {
 			return
 		}
 
+		// TODO: bad user fails more quickly than bad password
+		// TODO: solution? check against dummy hash and then fail
 		pwErr := "No user was found that matched the handle or email and password given."
 	    if u.UserId <= 0 {
+	    	err = limit.Bump(db)
+			if err != nil {
+				fmt.Println(err)
+			}
+
 			fmt.Println("User not found.")
 	    	sendError(rw, http.StatusUnauthorized, pwErr)
 			return
@@ -239,10 +261,16 @@ func main() {
 
 	    err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
 		if err != nil {
+	    	err = limit.Bump(db)
+			if err != nil {
+				fmt.Println(err)
+			}
+
 			fmt.Println("Bad password.")
 	    	sendError(rw, http.StatusUnauthorized, pwErr)
 			return
 		}
+		limit.Clear(db)
 
 		var t UserToken
 		t.UserId = u.UserId
