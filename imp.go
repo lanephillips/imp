@@ -65,6 +65,11 @@ func main() {
 	    panic(err.Error()) // proper error handling instead of panic in your app
 	}
 
+	// DB fields are capitalized in the same way as Go structs, so mapper is a no-op
+	db.MapperFunc(func(s string) string {
+		return s
+	})
+
     // Heroku uses env var to specify port
     port := os.Getenv("PORT")
 	if port == "" {
