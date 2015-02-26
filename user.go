@@ -101,7 +101,6 @@ func PostUser(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	var u User
-    u.UserId = -1
     u.Handle = handle
     u.Email = email.Address
     u.Status = ""
@@ -109,11 +108,16 @@ func PostUser(rw http.ResponseWriter, r *http.Request) {
     u.PasswordHash = string(hash)
 	fmt.Println(u)
 
-    err = u.Save(db)
+	result, err := db.NamedExec("INSERT INTO `User` (`Handle`, `Status`, `Biography`, `Email`, `PasswordHash`) " +
+			"VALUES (:handle, :status, :biography, :email, :passwordhash)", &u)
 	if err != nil {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())
 		return
+	}
+	u.UserId, err = result.LastInsertId()
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	// go ahead and log user in
