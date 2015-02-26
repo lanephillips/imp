@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
@@ -9,6 +8,7 @@ import (
 	"net/mail"
 	"net/http"
 	"time"
+	"github.com/jmoiron/sqlx"
 )
 
 type User struct {
@@ -68,28 +68,26 @@ func PostUser(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// look up handle to see if this user already exists
-    var u User
-    err = u.Fetch(db, handle)
+    var count int64
+    err = db.Get(&count, "SELECT COUNT(*) FROM User WHERE Handle LIKE ?", handle)
 	if err != nil {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-    if u.UserId > 0 {
+    if count > 0 {
 		fmt.Println("Handle already in use.")
     	sendError(rw, http.StatusConflict, "That handle is already in use.")
 		return
     }
 
-    err = u.Fetch(db, email.Address)
+    err = db.Get(&count, "SELECT COUNT(*) FROM User WHERE Email LIKE ?", email.Address)
 	if err != nil {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-    if u.UserId > 0 {
+    if count > 0 {
 		fmt.Println("Email already in use.")
     	sendError(rw, http.StatusConflict, "That email address is already in use.")
 		return
@@ -102,6 +100,7 @@ func PostUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var u User
     u.UserId = -1
     u.Handle = handle
     u.Email = email.Address
@@ -138,7 +137,7 @@ func PostUser(rw http.ResponseWriter, r *http.Request) {
 
 // TODO: not sure if this is the right way to search both handle and email
 // TODO: we really need to use sqlx instead of this ORM style
-func (u *User) Fetch(db *sql.DB, handleOrEmail string) (err error) {
+func (u *User) Fetch(db *sqlx.DB, handleOrEmail string) (err error) {
     u.UserId = -1
 
 	stmt, err := db.Prepare("SELECT `UserId`, `Handle`, `Status`, `Biography`, `PasswordHash`, `JoinedDate` FROM `User` " +
@@ -166,7 +165,7 @@ func (u *User) Fetch(db *sql.DB, handleOrEmail string) (err error) {
 	return err
 }
 
-func (u *User) Save(db *sql.DB) (err error) {
+func (u *User) Save(db *sqlx.DB) (err error) {
 	if u.UserId > 0 {
 		stmt, err := db.Prepare("UPDATE `User` SET `Handle` = ?, `Status` = ?, `Biography` = ?, `Email` = ?, `PasswordHash` = ? " +
 			"WHERE UserId = ?")

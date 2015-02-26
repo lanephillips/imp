@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/go-sql-driver/mysql"
@@ -10,6 +9,7 @@ import (
 	"log"
 	"time"
 	"crypto/rand"
+	"github.com/jmoiron/sqlx"
 )
 
 type UserToken struct {
@@ -133,7 +133,7 @@ func DeleteToken(rw http.ResponseWriter, r *http.Request) {
 }
 
 // TODO: DRY out this repeated fetch and save code, sqlx might help
-func (t *UserToken) Fetch(db *sql.DB, token string) (err error) {
+func (t *UserToken) Fetch(db *sqlx.DB, token string) (err error) {
     t.Token = ""
 
 	stmt, err := db.Prepare("SELECT `Token`, `UserId`, `LoginTime`, `LastSeenTime` FROM `UserToken` WHERE Token LIKE ? LIMIT 1")
@@ -160,7 +160,7 @@ func (t *UserToken) Fetch(db *sql.DB, token string) (err error) {
 	return err
 }
 
-func (t *UserToken) Save(db *sql.DB) (err error) {
+func (t *UserToken) Save(db *sqlx.DB) (err error) {
 	if len(t.Token) > 0 {
 		stmt, err := db.Prepare("UPDATE `UserToken` SET `LastSeenTime` = ? WHERE Token LIKE ?")
 		if err != nil {
@@ -210,7 +210,7 @@ func (t *UserToken) Save(db *sql.DB) (err error) {
 	return nil
 }
 
-func (t *UserToken) Delete(db *sql.DB) (err error) {
+func (t *UserToken) Delete(db *sqlx.DB) (err error) {
 	if len(t.Token) > 0 {
 		stmt, err := db.Prepare("DELETE FROM `UserToken` WHERE Token LIKE ?")
 		if err != nil {

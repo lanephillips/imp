@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,10 +10,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/unrolled/render"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 )
 
 var cfg Config
-var db *sql.DB
+var db *sqlx.DB
 
 func sendError(rw http.ResponseWriter, status int, message string) {
 	envelope := map[string]interface{}{
@@ -54,7 +54,7 @@ func main() {
 	// fmt.Println("loaded config", cfg)
 
 	// set up database connection
-	db, err = sql.Open("mysql", cfg.Database.User + ":" + cfg.Database.Password + "@/" + cfg.Database.Database)
+	db, err = sqlx.Open("mysql", cfg.Database.User + ":" + cfg.Database.Password + "@/" + cfg.Database.Database)
 	if err != nil {
 	    panic(err.Error()) // Just for example purpose. You should use proper error handling instead of panic
 	}

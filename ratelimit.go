@@ -1,10 +1,10 @@
 package main
 
 import (
-	"database/sql"
 	"github.com/go-sql-driver/mysql"
 	"log"
 	"time"
+	"github.com/jmoiron/sqlx"
 )
 
 type HandleLimit struct {
@@ -26,7 +26,7 @@ const (
 	SecondsBetweenLoginAttemptsPerIP = 1
 )
 
-func (h *HandleLimit) Fetch(db *sql.DB, handle string) (err error) {
+func (h *HandleLimit) Fetch(db *sqlx.DB, handle string) (err error) {
     h.Handle = handle
 
 	stmt, err := db.Prepare("SELECT `LoginAttemptCount`, `LastAttemptDate`, `NextLoginDelay` FROM `HandleLimit` WHERE `Handle` LIKE ?")
@@ -53,7 +53,7 @@ func (h *HandleLimit) Fetch(db *sql.DB, handle string) (err error) {
 	return err
 }
 
-func (h *HandleLimit) Bump(db *sql.DB) (err error) {
+func (h *HandleLimit) Bump(db *sqlx.DB) (err error) {
 	h.LoginAttemptCount = 1
 	h.LastAttemptDate.Time = time.Now()
 	h.LastAttemptDate.Valid = true
@@ -77,7 +77,7 @@ func (h *HandleLimit) Bump(db *sql.DB) (err error) {
 	return nil
 }
 
-func (h *HandleLimit) Clear(db *sql.DB) (err error) {
+func (h *HandleLimit) Clear(db *sqlx.DB) (err error) {
 	stmt, err := db.Prepare("DELETE FROM `HandleLimit` WHERE Handle LIKE ?")
 	if err != nil {
 	    log.Println(err)
@@ -102,7 +102,7 @@ func (h *HandleLimit) Clear(db *sql.DB) (err error) {
 	return nil
 }
 
-func (h *IPLimit) Fetch(db *sql.DB, ip string) (err error) {
+func (h *IPLimit) Fetch(db *sqlx.DB, ip string) (err error) {
     h.IP = ip
     h.UsersAllowedCount = NewUsersPerIPPerDay
 
@@ -130,7 +130,7 @@ func (h *IPLimit) Fetch(db *sql.DB, ip string) (err error) {
 	return err
 }
 
-func (h *IPLimit) LogAttempt(db *sql.DB) (err error) {
+func (h *IPLimit) LogAttempt(db *sqlx.DB) (err error) {
 	h.LastLoginAttemptDate.Time = time.Now()
 	h.LastLoginAttemptDate.Valid = true
 
@@ -151,7 +151,7 @@ func (h *IPLimit) LogAttempt(db *sql.DB) (err error) {
 	return nil
 }
 
-func (h *IPLimit) LogNewUser(db *sql.DB) (err error) {
+func (h *IPLimit) LogNewUser(db *sqlx.DB) (err error) {
 	if !h.CountResetDate.Valid || h.CountResetDate.Time.Before(time.Now()) {
 		h.CountResetDate.Time = time.Now().Add(24 * time.Hour)
 		h.CountResetDate.Valid = true
@@ -177,7 +177,7 @@ func (h *IPLimit) LogNewUser(db *sql.DB) (err error) {
 	return nil
 }
 
-func (h *IPLimit) Clear(db *sql.DB) (err error) {
+func (h *IPLimit) Clear(db *sqlx.DB) (err error) {
 	stmt, err := db.Prepare("DELETE FROM `IPLimit` WHERE IP LIKE ?")
 	if err != nil {
 	    log.Println(err)
