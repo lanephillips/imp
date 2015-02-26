@@ -54,8 +54,7 @@ func PostTokenHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// rate limit by handle even if it's not a real handle, because otherwise we would reveal its existence
-	var limit HandleLimit
-	err = limit.Fetch(db, handleOrEmail)
+	limit, err := FetchHandleLimit(db, handleOrEmail)
 	if err != nil {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())

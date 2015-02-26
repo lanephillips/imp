@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"github.com/go-sql-driver/mysql"
 	"log"
 	"time"
@@ -26,31 +27,19 @@ const (
 	SecondsBetweenLoginAttemptsPerIP = 1
 )
 
-func (h *HandleLimit) Fetch(db *sqlx.DB, handle string) (err error) {
+func FetchHandleLimit(db *sqlx.DB, handle string) (h *HandleLimit, err error) {
+	h = new(HandleLimit)
     h.Handle = handle
 
-	stmt, err := db.Prepare("SELECT `LoginAttemptCount`, `LastAttemptDate`, `NextLoginDelay` FROM `HandleLimit` WHERE `Handle` LIKE ?")
-	if err != nil {
+	err = db.Get(h, "SELECT `LoginAttemptCount`, `LastAttemptDate`, `NextLoginDelay` FROM `HandleLimit` WHERE `Handle` LIKE ?", handle)
+	if err == sql.ErrNoRows {
+		h.NextLoginDelay = 1
+		return h, nil
+	} else if err != nil {
 	    log.Println(err)
-	    return err
+	    return nil, err
 	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(handle)
-	if err != nil {
-	    log.Println(err)
-	    return err
-	}
-
-	if rows.Next() {
-	    if err := rows.Scan(&h.LoginAttemptCount, &h.LastAttemptDate, &h.NextLoginDelay); err != nil {
-	        log.Println(err)
-	    }
-	}
-	if err := rows.Err(); err != nil {
-	    log.Println(err)
-	}
-	return err
+	return h, nil
 }
 
 func (h *HandleLimit) Bump(db *sqlx.DB) (err error) {
@@ -59,17 +48,10 @@ func (h *HandleLimit) Bump(db *sqlx.DB) (err error) {
 	h.LastAttemptDate.Valid = true
 	h.NextLoginDelay = 1
 
-	stmt, err := db.Prepare("INSERT INTO `HandleLimit` (`Handle`, `LoginAttemptCount`, `LastAttemptDate`, `NextLoginDelay`) " +
-		"VALUES (?, ?, ?, ?) " +
+	_, err = db.NamedExec("INSERT INTO `HandleLimit` (`Handle`, `LoginAttemptCount`, `LastAttemptDate`, `NextLoginDelay`) " +
+		"VALUES (:Handle, :LoginAttemptCount, :LastAttemptDate, :NextLoginDelay) " +
 		"ON DUPLICATE KEY UPDATE `LoginAttemptCount` = `LoginAttemptCount` + 1, `NextLoginDelay` = 2 * `NextLoginDelay`, " +
-		"`LastAttemptDate` = VALUES(`LastAttemptDate`)")
-	if err != nil {
-	    log.Println(err)
-	    return err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(h.Handle, h.LoginAttemptCount, h.LastAttemptDate, h.NextLoginDelay)
+		"`LastAttemptDate` = VALUES(`LastAttemptDate`)", h)
 	if err != nil {
 	    log.Println(err)
 	    return err
@@ -78,27 +60,11 @@ func (h *HandleLimit) Bump(db *sqlx.DB) (err error) {
 }
 
 func (h *HandleLimit) Clear(db *sqlx.DB) (err error) {
-	stmt, err := db.Prepare("DELETE FROM `HandleLimit` WHERE Handle LIKE ?")
+	_, err = db.Exec("DELETE FROM `HandleLimit` WHERE Handle LIKE ?", h.Handle)
 	if err != nil {
 	    log.Println(err)
 	    return err
 	}
-	defer stmt.Close()
-
-	result, err := stmt.Exec(h.Handle)
-    if err != nil {
-	    log.Println(err)
-	    return err
-    }
-
-    count, err := result.RowsAffected()
-    if err != nil {
-	    log.Println(err)
-	    return err
-    }
-    if count != 1 {
-    	log.Println("Expected to update 1 row, not %d", count)
-    }
 	return nil
 }
 
