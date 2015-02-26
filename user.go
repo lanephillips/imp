@@ -23,7 +23,7 @@ type User struct {
 	IsDisabled bool
 }
 
-func PostUser(rw http.ResponseWriter, r *http.Request) {
+func PostUserHandler(rw http.ResponseWriter, r *http.Request) {
 	ip := getIP(r)
 	// fmt.Println("client ip is", ip)
 

@@ -20,7 +20,7 @@ type UserToken struct {
 	LastSeenTime mysql.NullTime
 }
 
-func PostToken(rw http.ResponseWriter, r *http.Request) {
+func PostTokenHandler(rw http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	handleOrEmail := r.PostFormValue("handleOrEmail")
@@ -120,7 +120,7 @@ func PostToken(rw http.ResponseWriter, r *http.Request) {
 	sendData(rw, http.StatusCreated, resp)
 }
 
-func DeleteToken(rw http.ResponseWriter, r *http.Request) {
+func DeleteTokenHandler(rw http.ResponseWriter, r *http.Request) {
 	var t UserToken
     t.Token = mux.Vars(r)["token"]
 

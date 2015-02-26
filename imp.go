@@ -90,7 +90,7 @@ func main() {
 
     api := r.PathPrefix("/api").Subrouter()
 
-    api.HandleFunc("/user", PostUser).Methods("POST")
+    api.HandleFunc("/user", PostUserHandler).Methods("POST")
 	// api.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
 	// 	// TODO: 
 	// }).Methods("GET")
@@ -101,8 +101,8 @@ func main() {
 	// 	// TODO: 
 	// }).Methods("DELETE")
 
-    api.HandleFunc("/token", PostToken).Methods("POST")
-    api.HandleFunc("/token/{token}", DeleteToken).Methods("DELETE")
+    api.HandleFunc("/token", PostTokenHandler).Methods("POST")
+    api.HandleFunc("/token/{token}", DeleteTokenHandler).Methods("DELETE")
 
 	http.ListenAndServeTLS(cfg.Server.Host + ":" + port, cfg.Server.Certificate, cfg.Server.Key, r)
 }
