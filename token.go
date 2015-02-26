@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/go-sql-driver/mysql"
@@ -68,21 +69,22 @@ func PostToken(rw http.ResponseWriter, r *http.Request) {
 	}
 
     var u User
-    err = u.Fetch(db, handleOrEmail)
-	if err != nil {
-		fmt.Println(err)
-		sendError(rw, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-    if u.UserId <= 0 {
+    err = db.Get(&u, "SELECT `UserId`, `Handle`, `Status`, `Biography`, `PasswordHash`, `JoinedDate` FROM `User` " +
+		"WHERE Handle LIKE ? OR Email LIKE ? LIMIT 1", handleOrEmail, handleOrEmail)
+    if err == sql.ErrNoRows {
     	// in order to prevent not found user failing more quickly than bad password
     	// proceed with checking password against dummy hash
 
 	    // dummy, _ := bcrypt.GenerateFromPassword([]byte(RandomString(50)), bcrypt.DefaultCost)
 	    // fmt.Println("dummy hash: ", string(dummy))
     	u.PasswordHash = "$2a$10$tg.SM/VMqShumLh/uhB1BOCFcQyCIBu4XvBf7lszBw2lMew1ubNWq"
-    }
+    	u.UserId = -1
+    } else if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
 
     err = bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
 	if err != nil || u.UserId <= 0 {
