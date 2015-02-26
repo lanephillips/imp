@@ -7,7 +7,6 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
-	"log"
 	"time"
 	"crypto/rand"
 	"github.com/jmoiron/sqlx"
@@ -103,17 +102,14 @@ func PostTokenHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 	limit.Clear(db)
 
-	var t UserToken
-	t.UserId = u.UserId
-
-	err = t.Save(db)
+	t, err := MakeToken(db, &u)
 	if err != nil {
 		sendError(rw, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	resp := map[string]interface{}{
-		"user": u,
+		"user": &u,
 		"token": t.Token,
 	}
 
@@ -121,10 +117,7 @@ func PostTokenHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteTokenHandler(rw http.ResponseWriter, r *http.Request) {
-	var t UserToken
-    t.Token = mux.Vars(r)["token"]
-
-    err := t.Delete(db)
+	err := DeleteToken(db, mux.Vars(r)["token"])
 	if err != nil {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())
@@ -134,112 +127,52 @@ func DeleteTokenHandler(rw http.ResponseWriter, r *http.Request) {
 	sendData(rw, http.StatusNoContent, "")
 }
 
-// TODO: DRY out this repeated fetch and save code, sqlx might help
-func (t *UserToken) Fetch(db *sqlx.DB, token string) (err error) {
-    t.Token = ""
+// func CheckToken(db *sqlx.DB, token string, userId int64) error {
+// 	var t UserToken
+// 	err := db.Get(&t, "SELECT `Token`, `UserId`, `LoginTime`, `LastSeenTime` FROM `UserToken` WHERE Token LIKE ? LIMIT 1")
+// 	if err != nil {
+// 	    log.Println(err)
+// 	    return err
+// 	}
+// 	defer stmt.Close()
 
-	stmt, err := db.Prepare("SELECT `Token`, `UserId`, `LoginTime`, `LastSeenTime` FROM `UserToken` WHERE Token LIKE ? LIMIT 1")
+// 	rows, err := stmt.Query(token)
+// 	if err != nil {
+// 	    log.Println(err)
+// 	    return err
+// 	}
+
+// 	if rows.Next() {
+// 	    if err := rows.Scan(&t.Token, &t.UserId, &t.LoginTime, &t.LastSeenTime); err != nil {
+// 	        log.Println(err)
+// 	    }
+// 	}
+// 	if err := rows.Err(); err != nil {
+// 	    log.Println(err)
+// 	}
+// 	return err
+// }
+
+func MakeToken(db *sqlx.DB, user *User) (*UserToken, error) {
+	t := new(UserToken)
+	t.Token = RandomString(50)
+	t.UserId = user.UserId
+	t.LoginTime.Time = time.Now()
+	t.LoginTime.Valid = true
+	t.LastSeenTime.Time = time.Now()
+	t.LastSeenTime.Valid = true
+
+	_, err := db.NamedExec("INSERT INTO `UserToken` (`Token`, `UserId`, `LoginTime`, `LastSeenTime`) " +
+			"VALUES (:Token, :UserId, :LoginTime, :LastSeenTime)", t)
 	if err != nil {
-	    log.Println(err)
-	    return err
+		return nil, err
 	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(token)
-	if err != nil {
-	    log.Println(err)
-	    return err
-	}
-
-	if rows.Next() {
-	    if err := rows.Scan(&t.Token, &t.UserId, &t.LoginTime, &t.LastSeenTime); err != nil {
-	        log.Println(err)
-	    }
-	}
-	if err := rows.Err(); err != nil {
-	    log.Println(err)
-	}
-	return err
+	return t, nil
 }
 
-func (t *UserToken) Save(db *sqlx.DB) (err error) {
-	if len(t.Token) > 0 {
-		stmt, err := db.Prepare("UPDATE `UserToken` SET `LastSeenTime` = ? WHERE Token LIKE ?")
-		if err != nil {
-		    log.Println(err)
-		    return err
-		}
-		defer stmt.Close()
-
-		t.LastSeenTime.Time = time.Now()
-		t.LastSeenTime.Valid = true
-
-		result, err := stmt.Exec(t.LastSeenTime, t.Token)
-        if err != nil {
-		    log.Println(err)
-		    return err
-        }
-
-        count, err := result.RowsAffected()
-        if err != nil {
-		    log.Println(err)
-		    return err
-        }
-        if count != 1 {
-        	log.Println("Expected to update 1 row, not %d", count)
-        }
-	} else {
-		stmt, err := db.Prepare("INSERT INTO `UserToken` (`Token`, `UserId`, `LoginTime`, `LastSeenTime`) " +
-			"VALUES (?, ?, ?, ?)")
-		if err != nil {
-		    log.Println(err)
-		    return err
-		}
-		defer stmt.Close()
-
-		t.Token = RandomString(50)
-		t.LoginTime.Time = time.Now()
-		t.LoginTime.Valid = true
-		t.LastSeenTime.Time = time.Now()
-		t.LastSeenTime.Valid = true
-
-		_, err = stmt.Exec(t.Token, t.UserId, t.LoginTime, t.LastSeenTime)
-        if err != nil {
-		    log.Println(err)
-		    return err
-        }
-	}
-	return nil
-}
-
-func (t *UserToken) Delete(db *sqlx.DB) (err error) {
-	if len(t.Token) > 0 {
-		stmt, err := db.Prepare("DELETE FROM `UserToken` WHERE Token LIKE ?")
-		if err != nil {
-		    log.Println(err)
-		    return err
-		}
-		defer stmt.Close()
-
-		result, err := stmt.Exec(t.Token)
-        if err != nil {
-		    log.Println(err)
-		    return err
-        }
-
-        count, err := result.RowsAffected()
-        if err != nil {
-		    log.Println(err)
-		    return err
-        }
-        if count != 1 {
-        	log.Println("Expected to update 1 row, not %d", count)
-        }
-        t.Token = ""
-	} else {
-		// TODO: error
-	}
-	return nil
+func DeleteToken(db *sqlx.DB, token string) (err error) {
+	_, err = db.Exec("DELETE FROM `UserToken` WHERE Token LIKE ?", token)
+	return
 }
 
 func RandomString(strSize int) string {

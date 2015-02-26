@@ -119,10 +119,7 @@ func PostUserHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// go ahead and log user in
-	var t UserToken
-	t.UserId = u.UserId
-
-	err = t.Save(db)
+	t, err := MakeToken(db, &u)
 	if err != nil {
 		fmt.Println(err)
 		// something went wrong, but at least we created the user, so don't die here
@@ -130,7 +127,7 @@ func PostUserHandler(rw http.ResponseWriter, r *http.Request) {
 	ipLimit.LogNewUser(db)
 
 	resp := map[string]interface{}{
-		"user": u,
+		"user": &u,
 		"token": t.Token,
 	}
 
