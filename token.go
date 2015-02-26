@@ -40,8 +40,7 @@ func PostTokenHandler(rw http.ResponseWriter, r *http.Request) {
 	// fmt.Println("client ip is", ip)
 
 	// rate limit by ip
-	var ipLimit IPLimit
-	err := ipLimit.Fetch(db, ip)
+	ipLimit, err := FetchIPLimit(db, ip)
 	if err != nil {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())

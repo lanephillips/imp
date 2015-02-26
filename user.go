@@ -28,8 +28,7 @@ func PostUserHandler(rw http.ResponseWriter, r *http.Request) {
 	// fmt.Println("client ip is", ip)
 
 	// rate limit new user creation by ip
-	var ipLimit IPLimit
-	err := ipLimit.Fetch(db, ip)
+	ipLimit, err := FetchIPLimit(db, ip)
 	if err != nil {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())
@@ -107,7 +106,7 @@ func PostUserHandler(rw http.ResponseWriter, r *http.Request) {
 	fmt.Println(u)
 
 	result, err := db.NamedExec("INSERT INTO `User` (`Handle`, `Status`, `Biography`, `Email`, `PasswordHash`) " +
-			"VALUES (:handle, :status, :biography, :email, :passwordhash)", &u)
+			"VALUES (:Handle, :Status, :Biography, :Email, :PasswordHash)", &u)
 	if err != nil {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())

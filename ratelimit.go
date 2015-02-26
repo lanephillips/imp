@@ -68,48 +68,28 @@ func (h *HandleLimit) Clear(db *sqlx.DB) (err error) {
 	return nil
 }
 
-func (h *IPLimit) Fetch(db *sqlx.DB, ip string) (err error) {
+func FetchIPLimit(db *sqlx.DB, ip string) (h *IPLimit, err error) {
+	h = new(IPLimit)
     h.IP = ip
-    h.UsersAllowedCount = NewUsersPerIPPerDay
 
-	stmt, err := db.Prepare("SELECT `LastLoginAttemptDate`, `UsersAllowedCount`, `CountResetDate` FROM `IPLimit` WHERE `IP` LIKE ?")
-	if err != nil {
+	err = db.Get(h, "SELECT `LastLoginAttemptDate`, `UsersAllowedCount`, `CountResetDate` FROM `IPLimit` WHERE `IP` LIKE ?", ip)
+	if err == sql.ErrNoRows {
+	    h.UsersAllowedCount = NewUsersPerIPPerDay
+		return h, nil
+	} else if err != nil {
 	    log.Println(err)
-	    return err
+	    return nil, err
 	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query(ip)
-	if err != nil {
-	    log.Println(err)
-	    return err
-	}
-
-	if rows.Next() {
-	    if err := rows.Scan(&h.LastLoginAttemptDate, &h.UsersAllowedCount, &h.CountResetDate); err != nil {
-	        log.Println(err)
-	    }
-	}
-	if err := rows.Err(); err != nil {
-	    log.Println(err)
-	}
-	return err
+	return h, nil
 }
 
 func (h *IPLimit) LogAttempt(db *sqlx.DB) (err error) {
 	h.LastLoginAttemptDate.Time = time.Now()
 	h.LastLoginAttemptDate.Valid = true
 
-	stmt, err := db.Prepare("INSERT INTO `IPLimit` (`IP`, `LastLoginAttemptDate`, `UsersAllowedCount`) " +
-		"VALUES (?, ?, ?) " +
-		"ON DUPLICATE KEY UPDATE `LastLoginAttemptDate` = VALUES(`LastLoginAttemptDate`)")
-	if err != nil {
-	    log.Println(err)
-	    return err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(h.IP, h.LastLoginAttemptDate, NewUsersPerIPPerDay)
+	_, err = db.NamedExec("INSERT INTO `IPLimit` (`IP`, `LastLoginAttemptDate`, `UsersAllowedCount`) " +
+		"VALUES (:IP, :LastLoginAttemptDate, :UsersAllowedCount) " +
+		"ON DUPLICATE KEY UPDATE `LastLoginAttemptDate` = VALUES(`LastLoginAttemptDate`)", h)
 	if err != nil {
 	    log.Println(err)
 	    return err
@@ -126,16 +106,10 @@ func (h *IPLimit) LogNewUser(db *sqlx.DB) (err error) {
 		h.UsersAllowedCount -= 1
 	}
 
-	stmt, err := db.Prepare("INSERT INTO `IPLimit` (`IP`, `UsersAllowedCount`, `CountResetDate`) " +
-		"VALUES (?, ?, ?) " +
-		"ON DUPLICATE KEY UPDATE `UsersAllowedCount` = VALUES(`UsersAllowedCount`), `CountResetDate` = VALUES(`CountResetDate`)")
-	if err != nil {
-	    log.Println(err)
-	    return err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(h.IP, h.UsersAllowedCount, h.CountResetDate)
+	_, err = db.NamedExec("INSERT INTO `IPLimit` (`IP`, `UsersAllowedCount`, `CountResetDate`) " +
+		"VALUES (:IP, :UsersAllowedCount, :CountResetDate) " +
+		"ON DUPLICATE KEY UPDATE `UsersAllowedCount` = VALUES(`UsersAllowedCount`), `CountResetDate` = VALUES(`CountResetDate`)",
+		h)
 	if err != nil {
 	    log.Println(err)
 	    return err
@@ -144,27 +118,11 @@ func (h *IPLimit) LogNewUser(db *sqlx.DB) (err error) {
 }
 
 func (h *IPLimit) Clear(db *sqlx.DB) (err error) {
-	stmt, err := db.Prepare("DELETE FROM `IPLimit` WHERE IP LIKE ?")
+	_, err = db.Exec("DELETE FROM `IPLimit` WHERE IP LIKE ?", h.IP)
 	if err != nil {
 	    log.Println(err)
 	    return err
 	}
-	defer stmt.Close()
-
-	result, err := stmt.Exec(h.IP)
-    if err != nil {
-	    log.Println(err)
-	    return err
-    }
-
-    count, err := result.RowsAffected()
-    if err != nil {
-	    log.Println(err)
-	    return err
-    }
-    if count != 1 {
-    	log.Println("Expected to update 1 row, not %d", count)
-    }
 	return nil
 }
 
