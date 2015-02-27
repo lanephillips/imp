@@ -101,6 +101,12 @@ func main() {
 	// 	// TODO: 
 	// }).Methods("DELETE")
 
+	api.HandleFunc("/note", ListNotesHandler).Methods("GET")
+	api.HandleFunc("/note", PostNoteHandler).Methods("POST")
+	api.HandleFunc("/note/{id}", GetNoteHandler).Methods("GET")
+	api.HandleFunc("/note/{id}", PutNoteHandler).Methods("PUT")
+	api.HandleFunc("/note/{id}", DeleteNoteHandler).Methods("DELETE")
+
     api.HandleFunc("/token", PostTokenHandler).Methods("POST")
     api.HandleFunc("/token/{token}", DeleteTokenHandler).Methods("DELETE")
 
