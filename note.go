@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"github.com/go-sql-driver/mysql"
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
+	"sort"
 )
 
 type Note struct {
@@ -17,6 +21,68 @@ type Note struct {
 	Edited bool
 	Deleted bool
 	GroupId int64
+}
+
+// interface for sorting strings by length
+type ByLength []string
+func (s ByLength) Len() int {
+    return len(s)
+}
+func (s ByLength) Swap(i, j int) {
+    s[i], s[j] = s[j], s[i]
+}
+func (s ByLength) Less(i, j int) bool {
+    return len(s[i]) < len(s[j])
+}
+
+func parseNote(text string) (note *Note) {
+	note = new(Note)
+	note.Text = text
+
+	// TODO: find @mentions
+	// atrx := MustCompile("@([[:alnum:]]{1,16})@((?:(?:(?:[a-zA-Z0-9][-a-zA-Z0-9]*)?[a-zA-Z0-9])[.])*(?:[a-zA-Z][-a-zA-Z0-9]*[a-zA-Z0-9]|[a-zA-Z]))")
+	// TODO: to be shortened, @mentions must be users that exist and are not blocking this user
+	// TODO: defer that process so we can return to the user right away and return 202 Accepted
+
+	// TODO: we will replace @mentions with @<number>
+	// TODO: find the highest @<number> that doesn't collide with existing text
+	// clients will substitute mentions for highest @<numbers> in reverse order
+
+	// find all things that look like links
+	linkrx := regexp.MustCompile("\\b(?:https?|ftp)://\\S+")
+	matches := linkrx.FindAllString(note.Text, 0)
+
+	if matches != nil {
+		// find the longest link
+		sort.Sort(ByLength(matches))
+		note.Link.String = matches[len(matches) - 1]
+		note.Link.Valid = true
+
+		// ‡<number> indicates location to insert link
+		dagIdx := 0
+		// if for some strange reason someone actually typed that, we search for the highest non-colliding index
+		dagrx := regexp.MustCompile("‡\\d+")
+		daggers := dagrx.FindAllString(note.Text, 0)
+		if daggers != nil {
+			for _, dagger := range daggers {
+				d2, _ := strconv.Atoi(dagger[1:])
+				if d2 >= dagIdx {
+					dagIdx = d2 + 1
+				}
+			}
+		}
+
+		// replace the link with our symbol
+		// clients can later replace ‡<highest number> with the link
+		dagger := fmt.Sprintf("‡%d", dagIdx)
+		note.Text = strings.Replace(note.Text, note.Link.String, dagger, 1)
+	}
+
+	if len(note.Text) > 140 {
+		// TODO: return error?
+		return nil
+	}
+	return note
 }
 
 func ListNotesHandler(rw http.ResponseWriter, r *http.Request) {
