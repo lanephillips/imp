@@ -49,8 +49,9 @@ func parseNote(text string) (note *Note) {
 	// clients will substitute mentions for highest @<numbers> in reverse order
 
 	// find all things that look like links
-	linkrx := regexp.MustCompile("\\b(?:https?|ftp)://\\S+")
-	matches := linkrx.FindAllString(note.Text, 0)
+	linkrx := regexp.MustCompile("\\b(?i:https?|ftp)://\\S+")
+	matches := linkrx.FindAllString(note.Text, -1)
+	//fmt.Println(matches)
 
 	if matches != nil {
 		// find the longest link
@@ -78,7 +79,7 @@ func parseNote(text string) (note *Note) {
 		note.Text = strings.Replace(note.Text, note.Link.String, dagger, 1)
 	}
 
-	if len(note.Text) > 140 {
+	if len(note.Text) > 140 || len(note.Text) == 0 {
 		// TODO: return error?
 		return nil
 	}
@@ -89,113 +90,34 @@ func ListNotesHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func PostNoteHandler(rw http.ResponseWriter, r *http.Request) {
-	// ip := getIP(r)
-	// // fmt.Println("client ip is", ip)
+	// TODO: we should make an auth middleware, once I can wrap my head around that
+	token, err := FetchToken(db, r)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if token == nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
 
-	// // rate limit new user creation by ip
-	// ipLimit, err := FetchIPLimit(db, ip)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	sendError(rw, http.StatusInternalServerError, err.Error())
-	// 	return
-	// }
-	// if ipLimit.UsersAllowedCount <= 0 && ipLimit.CountResetDate.Valid && time.Now().Before(ipLimit.CountResetDate.Time) {
-	// 	fmt.Println("Too many new user accounts from this address.", ipLimit)
-	// 	sendError(rw, 429, "Too many new user accounts from this address.")
-	// 	return
-	// }
+	r.ParseForm()
 
-	// r.ParseForm()
+	noteText := r.PostFormValue("note")
+	note := parseNote(noteText)
 
-	// handle := r.PostFormValue("handle")
-	// if len(handle) == 0 {
-	// 	fmt.Println("Missing handle.")
- //    	sendError(rw, http.StatusBadRequest, "Missing handle.")
-	// 	return
-	// }
+	if note == nil {
+		sendError(rw, http.StatusBadRequest, "Bad Request")
+		return
+	}
 
-	// email, err := mail.ParseAddress(r.PostFormValue("email"))
-	// if err != nil {
-	// 	fmt.Println(err)
- //    	sendError(rw, http.StatusBadRequest, "Invalid email address.")
-	// 	return
-	// }
+	// TODO: group
+	// TODO: defer processing mentions
+	// TODO: save to db
 
- //    // TODO: check password strength
-	// password := r.PostFormValue("password")
-	// if len(password) == 0 {
-	// 	fmt.Println("Missing password.")
- //    	sendError(rw, http.StatusBadRequest, "Missing password.")
-	// 	return
-	// }
-
-	// // look up handle to see if this user already exists
- //    var count int64
- //    err = db.Get(&count, "SELECT COUNT(*) FROM User WHERE Handle LIKE ?", handle)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	sendError(rw, http.StatusInternalServerError, err.Error())
-	// 	return
-	// }
- //    if count > 0 {
-	// 	fmt.Println("Handle already in use.")
- //    	sendError(rw, http.StatusConflict, "That handle is already in use.")
-	// 	return
- //    }
-
- //    err = db.Get(&count, "SELECT COUNT(*) FROM User WHERE Email LIKE ?", email.Address)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	sendError(rw, http.StatusInternalServerError, err.Error())
-	// 	return
-	// }
- //    if count > 0 {
-	// 	fmt.Println("Email already in use.")
- //    	sendError(rw, http.StatusConflict, "That email address is already in use.")
-	// 	return
- //    }
-
- //    hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	sendError(rw, http.StatusInternalServerError, err.Error())
-	// 	return
-	// }
-
-	// var u User
- //    u.Handle = handle
- //    u.Email = email.Address
- //    u.Status = ""
- //    u.Biography = ""
- //    u.PasswordHash = string(hash)
-	// fmt.Println(u)
-
-	// result, err := db.NamedExec("INSERT INTO `User` (`Handle`, `Status`, `Biography`, `Email`, `PasswordHash`) " +
-	// 		"VALUES (:Handle, :Status, :Biography, :Email, :PasswordHash)", &u)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	sendError(rw, http.StatusInternalServerError, err.Error())
-	// 	return
-	// }
-	// u.UserId, err = result.LastInsertId()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-
-	// // go ahead and log user in
-	// t, err := MakeToken(db, &u)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	// something went wrong, but at least we created the user, so don't die here
-	// }
-	// ipLimit.LogNewUser(db)
-
-	// resp := map[string]interface{}{
-	// 	"user": &u,
-	// 	"token": t.Token,
-	// }
-
-	// sendData(rw, http.StatusCreated, resp)
+	sendData(rw, http.StatusCreated, note)
 }
 
 func GetNoteHandler(rw http.ResponseWriter, r *http.Request) {

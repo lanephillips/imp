@@ -6,7 +6,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 	"crypto/rand"
 	"github.com/jmoiron/sqlx"
@@ -125,31 +127,24 @@ func DeleteTokenHandler(rw http.ResponseWriter, r *http.Request) {
 	sendData(rw, http.StatusNoContent, "")
 }
 
-// func CheckToken(db *sqlx.DB, token string, userId int64) error {
-// 	var t UserToken
-// 	err := db.Get(&t, "SELECT `Token`, `UserId`, `LoginTime`, `LastSeenTime` FROM `UserToken` WHERE Token LIKE ? LIMIT 1")
-// 	if err != nil {
-// 	    log.Println(err)
-// 	    return err
-// 	}
-// 	defer stmt.Close()
+func FetchToken(db *sqlx.DB, r *http.Request)  (*UserToken, error) {
+	auth := r.Header.Get("Authorization")
+	authPrefix := "IMP auth="
+	if !strings.HasPrefix(auth, authPrefix) {
+		return nil, nil
+	}
+	token := auth[len(authPrefix):]
 
-// 	rows, err := stmt.Query(token)
-// 	if err != nil {
-// 	    log.Println(err)
-// 	    return err
-// 	}
-
-// 	if rows.Next() {
-// 	    if err := rows.Scan(&t.Token, &t.UserId, &t.LoginTime, &t.LastSeenTime); err != nil {
-// 	        log.Println(err)
-// 	    }
-// 	}
-// 	if err := rows.Err(); err != nil {
-// 	    log.Println(err)
-// 	}
-// 	return err
-// }
+	t := new(UserToken)
+	err := db.Get(t, "SELECT `Token`, `UserId`, `LoginTime`, `LastSeenTime` FROM `UserToken` WHERE Token LIKE ? LIMIT 1", token)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	} else if err != nil {
+	    log.Println(err)
+	    return nil, err
+	}
+	return t, nil
+}
 
 func MakeToken(db *sqlx.DB, user *User) (*UserToken, error) {
 	t := new(UserToken)
