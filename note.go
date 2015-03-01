@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -87,6 +88,30 @@ func parseNote(text string) (note *Note) {
 }
 
 func ListNotesHandler(rw http.ResponseWriter, r *http.Request) {
+	token, err := FetchToken(db, r)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if token == nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	// TODO: range query parms
+	// TODO: guest authorization and user id parm
+
+	notes := []Note{}
+	err = db.Select(&notes, "SELECT * FROM Note WHERE UserId = ?", token.UserId)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	sendData(rw, http.StatusOK, notes)
 }
 
 func PostNoteHandler(rw http.ResponseWriter, r *http.Request) {
@@ -139,11 +164,137 @@ func PostNoteHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func GetNoteHandler(rw http.ResponseWriter, r *http.Request) {
+	token, err := FetchToken(db, r)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if token == nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	noteId, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// TODO: guest authorization
+
+	note := new(Note)
+	err = db.Get(note, "SELECT * FROM Note WHERE NoteId = ?", noteId)
+	if err == sql.ErrNoRows {
+		sendError(rw, http.StatusNotFound, "There is no note with that ID.")
+		return
+	} else if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	sendData(rw, http.StatusOK, note)
 }
 
 func PutNoteHandler(rw http.ResponseWriter, r *http.Request) {
+	token, err := FetchToken(db, r)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if token == nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	noteId, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var noteUser int64
+	err = db.Get(&noteUser, "SELECT UserId FROM Note WHERE NoteId = ?", noteId)
+	if err == sql.ErrNoRows {
+		sendError(rw, http.StatusNotFound, "There is no note with that ID.")
+		return
+	} else if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	} else if noteUser != token.UserId {
+		sendError(rw, http.StatusUnauthorized, "Only the note's author may edit it.")
+		return
+	}
+
+	r.ParseForm()
+	noteText := r.PostFormValue("note")
+	note := parseNote(noteText)
+	if note == nil {
+		sendError(rw, http.StatusBadRequest, "Bad Request")
+		return
+	}
+
+	_, err = db.NamedExec("UPDATE Note SET Text = :Text, Link = :Link, Edited = 1 "+
+		"WHERE NoteId = :NoteId", note)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	sendData(rw, http.StatusOK, note)
 }
 
 func DeleteNoteHandler(rw http.ResponseWriter, r *http.Request) {
+	// TODO: auth middleware
+	token, err := FetchToken(db, r)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if token == nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	// TODO: noteId parm middleware
+	noteId, err := strconv.Atoi(mux.Vars(r)["id"])
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// TODO: owner auth middleware
+	var noteUser int64
+	err = db.Get(&noteUser, "SELECT UserId FROM Note WHERE NoteId = ?", noteId)
+	if err == sql.ErrNoRows {
+		sendError(rw, http.StatusNotFound, "There is no note with that ID.")
+		return
+	} else if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	} else if noteUser != token.UserId {
+		sendError(rw, http.StatusUnauthorized, "Only the note's author may delete it.")
+		return
+	}
+
+	_, err = db.Exec("DELETE FROM `Note` WHERE NoteId = ?", noteId)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	sendData(rw, http.StatusNoContent, "")
 }
 
