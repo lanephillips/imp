@@ -24,6 +24,25 @@ type Note struct {
 	GroupId int64
 }
 
+// TODO: use Marshaler interface
+func (n *Note) AsMap() *map[string]interface{} {
+	m := map[string]interface{}{
+		"NoteId": n.NoteId,
+		"UserId": n.UserId,
+		"Text": n.Text,
+		"Date": n.Date.Time.Unix(),
+		"Edited": n.Edited,
+		"GroupId": n.GroupId,
+	}
+	if n.Link.Valid {
+		m["Link"] = n.Link.String
+	}
+	if n.LinkType.Valid {
+		m["LinkType"] = n.LinkType.String
+	}
+	return &m
+}
+
 // interface for sorting strings by length
 type ByLength []string
 func (s ByLength) Len() int {
@@ -111,7 +130,12 @@ func ListNotesHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendData(rw, http.StatusOK, notes)
+	notes2 := []interface{}{}
+	for _, note := range notes {
+		notes2 = append(notes2, note.AsMap())
+	}
+
+	sendData(rw, http.StatusOK, notes2)
 }
 
 func PostNoteHandler(rw http.ResponseWriter, r *http.Request) {
