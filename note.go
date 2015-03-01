@@ -113,9 +113,27 @@ func PostNoteHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: group
+	// TODO: groups
+	group := r.PostFormValue("group")
+	if len(group) > 0 {
+		groupId, _ := strconv.Atoi(group)
+		note.GroupId = int64(groupId)
+	}
+
 	// TODO: defer processing mentions
-	// TODO: save to db
+
+	note.UserId = token.UserId
+	result, err := db.NamedExec("INSERT INTO `Note` (`UserId`, `Text`, `Link`, `LinkType`, `GroupId`) " +
+			"VALUES (:UserId, :Text, :Link, :LinkType, :GroupId)", note)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	note.NoteId, err = result.LastInsertId()
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	sendData(rw, http.StatusCreated, note)
 }
