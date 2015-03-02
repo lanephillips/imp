@@ -82,11 +82,11 @@ func parseNote(text string) (note *Note) {
 		// ‡<number> indicates location to insert link
 		dagIdx := 0
 		// if for some strange reason someone actually typed that, we search for the highest non-colliding index
-		dagrx := regexp.MustCompile("‡\\d+")
-		daggers := dagrx.FindAllString(note.Text, 0)
+		dagrx := regexp.MustCompile("‡(\\d+)")
+		daggers := dagrx.FindAllStringSubmatch(note.Text, -1)
 		if daggers != nil {
 			for _, dagger := range daggers {
-				d2, _ := strconv.Atoi(dagger[1:])
+				d2, _ := strconv.Atoi(dagger[1])
 				if d2 >= dagIdx {
 					dagIdx = d2 + 1
 				}
@@ -184,7 +184,7 @@ func PostNoteHandler(rw http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 
-	sendData(rw, http.StatusCreated, note)
+	sendData(rw, http.StatusCreated, note.AsMap())
 }
 
 func GetNoteHandler(rw http.ResponseWriter, r *http.Request) {
@@ -220,7 +220,7 @@ func GetNoteHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendData(rw, http.StatusOK, note)
+	sendData(rw, http.StatusOK, note.AsMap())
 }
 
 func PutNoteHandler(rw http.ResponseWriter, r *http.Request) {
@@ -243,8 +243,8 @@ func PutNoteHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var noteUser int64
-	err = db.Get(&noteUser, "SELECT UserId FROM Note WHERE NoteId = ?", noteId)
+	note := new(Note)
+	err = db.Get(note, "SELECT * FROM Note WHERE NoteId = ?", noteId)
 	if err == sql.ErrNoRows {
 		sendError(rw, http.StatusNotFound, "There is no note with that ID.")
 		return
@@ -252,18 +252,21 @@ func PutNoteHandler(rw http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())
 		return
-	} else if noteUser != token.UserId {
+	} else if note.UserId != token.UserId {
 		sendError(rw, http.StatusUnauthorized, "Only the note's author may edit it.")
 		return
 	}
 
 	r.ParseForm()
 	noteText := r.PostFormValue("note")
-	note := parseNote(noteText)
-	if note == nil {
+	note2 := parseNote(noteText)
+	if note2 == nil {
 		sendError(rw, http.StatusBadRequest, "Bad Request")
 		return
 	}
+	note.Text = note2.Text
+	note.Link = note2.Link
+	note.Edited = true
 
 	_, err = db.NamedExec("UPDATE Note SET Text = :Text, Link = :Link, Edited = 1 "+
 		"WHERE NoteId = :NoteId", note)
@@ -273,7 +276,7 @@ func PutNoteHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sendData(rw, http.StatusOK, note)
+	sendData(rw, http.StatusOK, note.AsMap())
 }
 
 func DeleteNoteHandler(rw http.ResponseWriter, r *http.Request) {
