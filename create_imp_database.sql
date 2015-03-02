@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: localhost
--- Generation Time: Feb 25, 2015 at 07:03 PM
+-- Generation Time: Mar 02, 2015 at 10:49 PM
 -- Server version: 5.6.20
 -- PHP Version: 5.5.14
 
@@ -73,6 +73,24 @@ CREATE TABLE IF NOT EXISTS `IPLimit` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `Note`
+--
+
+CREATE TABLE IF NOT EXISTS `Note` (
+`NoteId` int(11) NOT NULL,
+  `UserId` int(11) NOT NULL,
+  `Text` varchar(140) NOT NULL,
+  `Link` text,
+  `LinkType` varchar(64) DEFAULT NULL,
+  `Date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `Edited` tinyint(1) NOT NULL DEFAULT '0',
+  `Deleted` tinyint(1) NOT NULL DEFAULT '0',
+  `GroupId` int(11) NOT NULL
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `User`
 --
 
@@ -88,7 +106,7 @@ CREATE TABLE IF NOT EXISTS `User` (
   `PasswordHash` varchar(60) NOT NULL,
   `JoinedDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `IsDisabled` tinyint(1) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
 
@@ -144,6 +162,12 @@ ALTER TABLE `IPLimit`
  ADD PRIMARY KEY (`IP`);
 
 --
+-- Indexes for table `Note`
+--
+ALTER TABLE `Note`
+ ADD PRIMARY KEY (`NoteId`);
+
+--
 -- Indexes for table `User`
 --
 ALTER TABLE `User`
@@ -170,10 +194,15 @@ MODIFY `GuestId` int(11) NOT NULL AUTO_INCREMENT;
 ALTER TABLE `Host`
 MODIFY `HostId` int(11) NOT NULL AUTO_INCREMENT;
 --
+-- AUTO_INCREMENT for table `Note`
+--
+ALTER TABLE `Note`
+MODIFY `NoteId` int(11) NOT NULL AUTO_INCREMENT,AUTO_INCREMENT=3;
+--
 -- AUTO_INCREMENT for table `User`
 --
 ALTER TABLE `User`
-MODIFY `UserId` int(11) NOT NULL AUTO_INCREMENT,AUTO_INCREMENT=3;
+MODIFY `UserId` int(11) NOT NULL AUTO_INCREMENT,AUTO_INCREMENT=20;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
