@@ -12,6 +12,8 @@ import (
 	"sort"
 )
 
+const MaximumNotesReturned = 100
+
 type Note struct {
 	NoteId int64
 	UserId int64
@@ -106,6 +108,20 @@ func parseNote(text string) (note *Note) {
 	return note
 }
 
+// first call r.ParseForm()
+func validIntFormValue(r *http.Request, fieldName string, defaultValue int) int {
+	stringVal := r.PostFormValue(fieldName)
+	if len(stringVal) == 0 {
+		return defaultValue
+	}
+	intVal, err := strconv.Atoi(stringVal)
+	if err != nil {
+		// TODO: or should we 400 on malformed ints?
+		return defaultValue
+	}
+	return intVal
+}
+
 func ListNotesHandler(rw http.ResponseWriter, r *http.Request) {
 	token, err := FetchToken(db, r)
 	if err != nil {
@@ -119,11 +135,35 @@ func ListNotesHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: range query parms
 	// TODO: guest authorization and user id parm
 
+	r.ParseForm()
+	where := " WHERE UserId = ?"
+	sinceId := validIntFormValue(r, "since_id", 0)
+	if sinceId > 0 {
+		where += " AND NoteId > " + strconv.Itoa(sinceId)
+	}
+	sinceDate := validIntFormValue(r, "since_date", 0)
+	if sinceDate > 0 {
+		where += " AND Date > FROM_UNIXTIME(" + strconv.Itoa(sinceDate) + ")"
+	}
+	beforeId := validIntFormValue(r, "before_id", 0)
+	if beforeId > 0 {
+		where += " AND NoteId < " + strconv.Itoa(beforeId)
+	}
+	beforeDate := validIntFormValue(r, "before_date", 0)
+	if beforeDate > 0 {
+		where += " AND Date < FROM_UNIXTIME(" + strconv.Itoa(beforeDate) + ")"
+	}
+
+	count := validIntFormValue(r, "count", MaximumNotesReturned)
+	if count > MaximumNotesReturned {
+		count = MaximumNotesReturned
+	}
+	limit := " LIMIT " + strconv.Itoa(count)
+
 	notes := []Note{}
-	err = db.Select(&notes, "SELECT * FROM Note WHERE UserId = ?", token.UserId)
+	err = db.Select(&notes, "SELECT * FROM Note" + where + limit, token.UserId)
 	if err != nil {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())
