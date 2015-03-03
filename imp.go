@@ -110,9 +110,9 @@ func main() {
     api.HandleFunc("/token", PostTokenHandler).Methods("POST")
     api.HandleFunc("/token/{token}", DeleteTokenHandler).Methods("DELETE")
 
-    api.HandleFunc("/user/{handle}/host/{host}", GetUserGuestHandler).Methods("PUT")
-    api.HandleFunc("/user/{handle}/host/{host}", PutUserGuestHandler).Methods("PUT")
-    api.HandleFunc("/guest", PostGuestHandler).Methods()
+    api.HandleFunc("/user/{handle}/host/{host}", GetUserHostHandler).Methods("GET")
+    api.HandleFunc("/user/{handle}/host", PostUserHostHandler).Methods("POST")
+    api.HandleFunc("/guest", PostGuestHandler).Methods("POST")
 
 	http.ListenAndServeTLS(cfg.Server.Host + ":" + port, cfg.Server.Certificate, cfg.Server.Key, r)
 }

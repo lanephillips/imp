@@ -2,6 +2,7 @@
 
 IMP is a Twitter-like service that is designed to be decentralized. In the same way that no single business can own all email or all websites, no single business can own all IMP accounts. Anyone can run an IMP host, and users on different hosts can connect with each other, because IMP is an open standard.
 
+<!-- TODO: Later:
 ## Service Discovery
 
 Usernames take the form of *handle*@*host*. However, it may not be convenient for the IMP service to run at the root of the host. Therefore a service discovery mechanism is proposed.
@@ -11,6 +12,7 @@ For any IMP instance to be considered a host, the response to a GET request on t
     <link rel="imp-api-prefix" href="/prefix"/>
 
 The value of the `href` attribute will be prepended onto all IMP API calls. This attribute may be an empty string.
+-->
 
 ## Guest Authentication
 
@@ -22,7 +24,7 @@ Guests are people whose accounts are hosted on other systems but who want to fol
 2. Alice GETs the token from /user/alice/host/host.b on host.a
 3. The token doesn't exist, so host.a returns 202 Accepted
 4. host.a creates a random nonce and POSTs Alice's address and the nonce to /guest on host.b
-5. host.b creates an auth token and PUTs it and the nonce at /user/alice/host/host.b on host.a
+5. host.b creates an auth token and POSTs it and the nonce at /user/alice/host on host.a
 6. host.a verifies the nonce and stores the token
 7. Alice retries her GET /user/alice/host/host.b on host.a and this time receives the token
 8. Alice can now query host.b for Bob's notes. She must supply her token in every interation with host.b
