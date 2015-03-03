@@ -57,7 +57,10 @@ func GetUserHostHandler(rw http.ResponseWriter, r *http.Request) {
 
 	var user User
 	err = db.Get(&user, "SELECT UserId, Handle FROM User WHERE Handle LIKE ?", handle)
-	if err != nil {
+	if err == sql.ErrNoRows {
+		sendError(rw, http.StatusNotFound, err.Error())
+		return
+	} else if err != nil {
 		fmt.Println(err)
 		sendError(rw, http.StatusInternalServerError, err.Error())
 		return
@@ -133,7 +136,62 @@ func GetUserHostHandler(rw http.ResponseWriter, r *http.Request) {
 
 // called by foreign host to place an access token for user of this host
 func PostUserHostHandler(rw http.ResponseWriter, r *http.Request) {
-	
+	r.ParseForm()
+	hostname := r.PostFormValue("host")
+	if len(hostname) == 0 {
+		sendError(rw, http.StatusBadRequest, "Host is missing.")
+		return
+	}
+	token := r.PostFormValue("token")
+	if len(token) == 0 {
+		sendError(rw, http.StatusBadRequest, "Token is missing.")
+		return
+	}
+	nonce := r.PostFormValue("nonce")
+	if len(nonce) == 0 {
+		sendError(rw, http.StatusBadRequest, "Nonce is missing.")
+		return
+	}
+
+	handle := mux.Vars(r)["handle"]	
+
+	var user User
+	err := db.Get(&user, "SELECT UserId, Handle FROM User WHERE Handle LIKE ?", handle)
+	if err == sql.ErrNoRows {
+		sendError(rw, http.StatusNotFound, "There is no user with that handle.")
+		return
+	} else if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	host, err := FetchHost(db, hostname)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var userHost UserHost
+	err = db.Get(&userHost, "SELECT * FROM UserHost WHERE UserId = ? AND HostId = ? AND Nonce LIKE ?",
+		user.UserId, host.HostId, nonce)
+	if err == sql.ErrNoRows {
+		sendError(rw, http.StatusUnauthorized, "The user did not request a guest token.")
+		return
+	} else if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	_, err = db.NamedExec("UPDATE UserHost SET Nonce = '', Token = :Token WHERE UserId = :UserId AND HostId = :HostId", &userHost)
+	if err != nil {
+		fmt.Println(err)
+		sendError(rw, http.StatusInternalServerError, err.Error())
+		return
+	}
+	sendData(rw, http.StatusOK, "")
 }
 
 // called by foreign host to request access token for one of its users
@@ -196,7 +254,7 @@ func PostGuestHandler(rw http.ResponseWriter, r *http.Request) {
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		if resp.StatusCode == http.StatusOK {
 			// don't save until we get a successful response,
 			// otherwise an attacker could destroy guest tokens by posting this request with a bum nonce
 			_, err = db.NamedExec("INSERT INTO `Guest` (`Handle`, `HostId`, `Token`, `CreatedDate`) " +
