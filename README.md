@@ -19,12 +19,13 @@ An IMP server has *users* and *guests*. Users are people whose accounts are host
 Guests are people whose accounts are hosted on other systems but who want to follow users on this system. If guests were identified solely by handle and hostname, then they could easily circumvent block lists or join private groups by spoofing handles. Therefore, guests must participate in *guest authentication*, which works as follows:
 
 1. alice@host.a wants to follow bob@host.b
-2. Alice PUTs a random nonce at /user/alice/guest/host.b on host.a
-3. Alice POSTs her address and the nonce to /guest on host.b
-4. host.b creates an auth token and PUTs it and the nonce at /user/alice/guest/host.b on host.a
-5. host.a verifies the nonce and stores the token
-6. Alice GETs the token from /user/alice/guest/host.b (She can start long polling for it after step 3.)
-7. Alice can now query host.b for Bob's notes. She must supply her token in every interation with host.b
+2. Alice GETs the token from /user/alice/host/host.b on host.a
+3. The token doesn't exist, so host.a returns 202 Accepted
+4. host.a creates a random nonce and POSTs Alice's address and the nonce to /guest on host.b
+5. host.b creates an auth token and PUTs it and the nonce at /user/alice/host/host.b on host.a
+6. host.a verifies the nonce and stores the token
+7. Alice retries her GET /user/alice/host/host.b on host.a and this time receives the token
+8. Alice can now query host.b for Bob's notes. She must supply her token in every interation with host.b
 
 This process is similar to how you supply your email address when creating an account on a website. The website doesn't simply trust that you own the email address; it sends a verification code *to the address* so that you can click on the link in the email to prove you own the address. If you tried to use someone else's address, you would never see the verifaction email.
 

@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: localhost
--- Generation Time: Mar 02, 2015 at 10:49 PM
+-- Generation Time: Mar 03, 2015 at 04:54 PM
 -- Server version: 5.6.20
 -- PHP Version: 5.5.14
 
@@ -29,8 +29,9 @@ SET time_zone = "+00:00";
 CREATE TABLE IF NOT EXISTS `Guest` (
 `GuestId` int(11) NOT NULL,
   `Handle` varchar(16) NOT NULL,
-  `Host` varchar(255) NOT NULL,
-  `Token` varchar(255) NOT NULL
+  `HostId` int(11) NOT NULL,
+  `Token` varchar(255) NOT NULL,
+  `CreatedDate` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
@@ -117,7 +118,8 @@ CREATE TABLE IF NOT EXISTS `User` (
 CREATE TABLE IF NOT EXISTS `UserHost` (
   `UserId` int(11) NOT NULL,
   `HostId` int(11) NOT NULL,
-  `Token` varchar(255) NOT NULL
+  `Token` varchar(255) NOT NULL,
+  `CreatedDate` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
@@ -141,7 +143,7 @@ CREATE TABLE IF NOT EXISTS `UserToken` (
 -- Indexes for table `Guest`
 --
 ALTER TABLE `Guest`
- ADD PRIMARY KEY (`GuestId`);
+ ADD PRIMARY KEY (`GuestId`), ADD UNIQUE KEY `Token` (`Token`), ADD UNIQUE KEY `Handle` (`Handle`,`HostId`);
 
 --
 -- Indexes for table `HandleLimit`
@@ -153,7 +155,7 @@ ALTER TABLE `HandleLimit`
 -- Indexes for table `Host`
 --
 ALTER TABLE `Host`
- ADD PRIMARY KEY (`HostId`);
+ ADD PRIMARY KEY (`HostId`), ADD UNIQUE KEY `Name` (`Name`);
 
 --
 -- Indexes for table `IPLimit`
@@ -172,6 +174,12 @@ ALTER TABLE `Note`
 --
 ALTER TABLE `User`
  ADD PRIMARY KEY (`UserId`), ADD UNIQUE KEY `Handle` (`Handle`), ADD UNIQUE KEY `Email` (`Email`);
+
+--
+-- Indexes for table `UserHost`
+--
+ALTER TABLE `UserHost`
+ ADD UNIQUE KEY `UserId` (`UserId`,`HostId`);
 
 --
 -- Indexes for table `UserToken`
