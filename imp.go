@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -48,22 +49,22 @@ func getIP(r *http.Request) string {
 func main() {
 	err := LoadConfigInto(&cfg, "config.gcfg")
 	if err != nil {
-		fmt.Println(err)
-		// TODO: die
+		log.Fatalln(err)
 	}
-	// fmt.Println("loaded config", cfg)
+	log.Println("Loaded config.")
 
 	// set up database connection
 	db, err = sqlx.Open("mysql", cfg.Database.User + ":" + cfg.Database.Password + "@/" + cfg.Database.Database)
 	if err != nil {
-	    panic(err.Error()) // Just for example purpose. You should use proper error handling instead of panic
+		log.Fatalln(err)
 	}
 	defer db.Close()
 
 	err = db.Ping()
 	if err != nil {
-	    panic(err.Error()) // proper error handling instead of panic in your app
+		log.Fatalln(err)
 	}
+	log.Println("Opened database.")
 
 	// DB fields are capitalized in the same way as Go structs, so mapper is a no-op
 	db.MapperFunc(func(s string) string {
@@ -114,7 +115,9 @@ func main() {
     api.HandleFunc("/user/{handle}/host", PostUserHostHandler).Methods("POST")
     api.HandleFunc("/guest", PostGuestHandler).Methods("POST")
 
-	http.ListenAndServeTLS(cfg.Server.Host + ":" + port, cfg.Server.Certificate, cfg.Server.Key, r)
+    hostname := cfg.Server.Host + ":" + port
+    log.Println("Listening on " + hostname + ".")
+	http.ListenAndServeTLS(hostname, cfg.Server.Certificate, cfg.Server.Key, r)
 }
 
 func HomeHandler(rw http.ResponseWriter, r *http.Request) {
