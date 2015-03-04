@@ -1,15 +1,28 @@
+[api]
+# host name for users
+host = 
+# API version
+version = 0.9
+# where the service is actually located, this is prepended to API endpoints
+# e.g. everything between https:// and /token in this request: POST https://imp.example.com:5039/api/token
+location = 
+
 [server]
+# host an port where we listen for connections
 host =
-port = 8080
+port = 5039
+# SSL certificate and key file
 certificate = 
 key = 
 
 [database]
+# where we store all the data
 database = imp
 user = imp
 password = PASSWORD
 
 [mail]
+# SMTP config for sending outgoing mail
 name =
 address =
 user =

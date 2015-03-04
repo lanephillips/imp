@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
@@ -10,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -19,6 +21,7 @@ const GuestTokenTimeout = 30
 type Host struct {
 	HostId int64
 	Name string
+	Location string
 }
 
 type Guest struct {
@@ -117,9 +120,16 @@ func GetUserHostHandler(rw http.ResponseWriter, r *http.Request) {
 	sendData(rw, http.StatusAccepted, "")
 
 	go func() {
-		// TODO: api prefix
-		resp, err := http.PostForm("https://" + host.Name + "/guest",
-			url.Values{"host": {cfg.Server.Host}, "handle": {user.Handle}, "nonce": {userHost.Nonce}})
+		if len(host.Location) == 0 {
+			err := DiscoverHost(db, host)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+		}
+
+		resp, err := http.PostForm("https://" + host.Location + "/guest",
+			url.Values{"host": {cfg.Api.Host}, "handle": {user.Handle}, "nonce": {userHost.Nonce}})
 		if err != nil {
 		    log.Println(err)
 		    return
@@ -245,9 +255,16 @@ func PostGuestHandler(rw http.ResponseWriter, r *http.Request) {
 	sendData(rw, http.StatusAccepted, "")
 
 	go func() {
-		// TODO: api prefix
-		resp, err := http.PostForm("https://" + host.Name + "/user/" + guest.Handle + "/host",
-			url.Values{"host": {cfg.Server.Host}, "token": {guest.Token}, "nonce": {nonce}})
+		if len(host.Location) == 0 {
+			err := DiscoverHost(db, host)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+		}
+
+		resp, err := http.PostForm("https://" + host.Location + "/user/" + guest.Handle + "/host",
+			url.Values{"host": {cfg.Api.Host}, "token": {guest.Token}, "nonce": {nonce}})
 		if err != nil {
 		    log.Println(err)
 		    return
@@ -290,4 +307,51 @@ func FetchHost(db *sqlx.DB, hostname string)  (*Host, error) {
 		return nil, err
 	}
 	return &host, nil
+}
+
+func DiscoverHost(db *sqlx.DB, host *Host) error {
+	urls := []string{
+		"https://" + host.Name,
+		"https://" + host.Name + ":" + IMPDefaultPort,
+		"http://" + host.Name,
+	}
+
+	for len(urls) > 0 {
+		lurl, urls := urls[0], urls[1:]
+
+		// this will follow redirects
+		resp, err := http.Get(lurl)
+		if err != nil || resp.StatusCode != http.StatusOK {
+			// that didn't work, try the next one
+			continue
+		}
+		defer resp.Body.Close()
+
+		location := resp.Header.Get(IMPLocationHeader)
+		if len(location) > 0 {
+			s := strings.Split(location, ";")
+			location = s[len(s) - 1]
+
+			if lurl == "https://" + location {
+				// we found it! the API location we got is the URL we're looking at
+				host.Location = location
+
+				_, err = db.Exec("UPDATE Host SET Location = ? WHERE HostId = ?", host.Location, host.HostId)
+				if err != nil {
+					log.Println(err)
+				}
+				return nil
+			}
+
+			// it's good that we found our header, but let's go there to verify
+			// put it in the front of the queue
+			// TODO: server misconfiguration could lead to infinite loop?
+			urls = append([]string{ "https://" + location }, urls...)
+			continue
+		}
+
+		// TODO: parse html with golang.org/x/net/html 
+		// TODO: and look for <meta http-equiv=...
+	}
+	return errors.New("Could not locate the IMP host.")
 }

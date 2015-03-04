@@ -14,10 +14,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	IMPLocationHeader = "IMP-API-Location"
+	IMPDefaultPort = "5039"		// 443 would actually be our first choice
+)
+
 var cfg Config
 var db *sqlx.DB
 
 func sendError(rw http.ResponseWriter, status int, message string) {
+	rw.Header().Set(IMPLocationHeader, cfg.Api.Version + ";" + cfg.Api.Location)
 	envelope := map[string]interface{}{
 		"errors": [1]interface{}{
 			map[string]interface{}{
@@ -31,6 +37,7 @@ func sendError(rw http.ResponseWriter, status int, message string) {
 }
 
 func sendData(rw http.ResponseWriter, status int, data interface{}) {
+	rw.Header().Set(IMPLocationHeader, cfg.Api.Version + ";" + cfg.Api.Location)
 	envelope := map[string]interface{}{
 		"data": data,
 	}
@@ -71,56 +78,46 @@ func main() {
 		return s
 	})
 
+	// set up routes
+	r := mux.NewRouter()
+    r.HandleFunc("/",  func (rw http.ResponseWriter, r *http.Request) {
+    	sendData(rw, http.StatusOK, "")
+	})
+
+	r.HandleFunc("/user", PostUserHandler).Methods("POST")
+	// r.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
+	// 	// TODO: 
+	// }).Methods("GET")
+	// r.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
+	// 	// TODO: 
+	// }).Methods("PUT")
+	// r.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
+	// 	// TODO: 
+	// }).Methods("DELETE")
+
+	r.HandleFunc("/note", ListNotesHandler).Methods("GET")
+	r.HandleFunc("/note", PostNoteHandler).Methods("POST")
+	r.HandleFunc("/note/{id}", GetNoteHandler).Methods("GET")
+	r.HandleFunc("/note/{id}", PutNoteHandler).Methods("PUT")
+	r.HandleFunc("/note/{id}", DeleteNoteHandler).Methods("DELETE")
+
+    r.HandleFunc("/token", PostTokenHandler).Methods("POST")
+    r.HandleFunc("/token/{token}", DeleteTokenHandler).Methods("DELETE")
+
+    r.HandleFunc("/user/{handle}/host/{host}", GetUserHostHandler).Methods("GET")
+    r.HandleFunc("/user/{handle}/host", PostUserHostHandler).Methods("POST")
+    r.HandleFunc("/guest", PostGuestHandler).Methods("POST")
+
     // Heroku uses env var to specify port
     port := os.Getenv("PORT")
 	if port == "" {
 		port = cfg.Server.Port
 	}
-
-	// any requests on the regular HTTP port get automatically redirected to the secure home page
-	// don't just redirect HTTP to HTTPS, because that doesn't train the user to not use HTTP on the first request
-	// TODO: commented out so I can run Apache on 80 on my computer
-	// TODO: this didn't work, maybe I have too many web servers running, also Chrome gets pretty confused with port numbers
-	// go http.ListenAndServe(cfg.Server.Host + ":80", http.HandlerFunc(func (w http.ResponseWriter, req *http.Request) {
-	// 	// TODO: secure app shouldn't have to be at the root of the domain
-	// 	http.Redirect(w, req, "https://" + cfg.Server.Host + ":" + port, http.StatusMovedPermanently)
-	// }))
-
-    r := mux.NewRouter()
-    r.HandleFunc("/", HomeHandler)
-
-    api := r.PathPrefix("/api").Subrouter()
-
-    api.HandleFunc("/user", PostUserHandler).Methods("POST")
-	// api.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
-	// 	// TODO: 
-	// }).Methods("GET")
-	// api.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
-	// 	// TODO: 
-	// }).Methods("PUT")
-	// api.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
-	// 	// TODO: 
-	// }).Methods("DELETE")
-
-	api.HandleFunc("/note", ListNotesHandler).Methods("GET")
-	api.HandleFunc("/note", PostNoteHandler).Methods("POST")
-	api.HandleFunc("/note/{id}", GetNoteHandler).Methods("GET")
-	api.HandleFunc("/note/{id}", PutNoteHandler).Methods("PUT")
-	api.HandleFunc("/note/{id}", DeleteNoteHandler).Methods("DELETE")
-
-    api.HandleFunc("/token", PostTokenHandler).Methods("POST")
-    api.HandleFunc("/token/{token}", DeleteTokenHandler).Methods("DELETE")
-
-    api.HandleFunc("/user/{handle}/host/{host}", GetUserHostHandler).Methods("GET")
-    api.HandleFunc("/user/{handle}/host", PostUserHostHandler).Methods("POST")
-    api.HandleFunc("/guest", PostGuestHandler).Methods("POST")
+	if port == "" {
+		port = IMPDefaultPort
+	}
 
     hostname := cfg.Server.Host + ":" + port
     log.Println("Listening on " + hostname + ".")
 	http.ListenAndServeTLS(hostname, cfg.Server.Certificate, cfg.Server.Key, r)
-}
-
-func HomeHandler(rw http.ResponseWriter, r *http.Request) {
-	rend := render.New()
-	rend.HTML(rw, http.StatusOK, "login", nil)
 }

@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: localhost
--- Generation Time: Mar 03, 2015 at 04:54 PM
+-- Generation Time: Mar 04, 2015 at 04:03 AM
 -- Server version: 5.6.20
 -- PHP Version: 5.5.14
 
@@ -26,7 +26,7 @@ SET time_zone = "+00:00";
 -- Table structure for table `Guest`
 --
 
-CREATE TABLE IF NOT EXISTS `Guest` (
+CREATE TABLE `Guest` (
 `GuestId` int(11) NOT NULL,
   `Handle` varchar(16) NOT NULL,
   `HostId` int(11) NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS `Guest` (
 -- Table structure for table `HandleLimit`
 --
 
-CREATE TABLE IF NOT EXISTS `HandleLimit` (
+CREATE TABLE `HandleLimit` (
   `Handle` varchar(16) NOT NULL,
   `LoginAttemptCount` int(11) NOT NULL,
   `LastAttemptDate` datetime NOT NULL,
@@ -53,9 +53,10 @@ CREATE TABLE IF NOT EXISTS `HandleLimit` (
 -- Table structure for table `Host`
 --
 
-CREATE TABLE IF NOT EXISTS `Host` (
+CREATE TABLE `Host` (
 `HostId` int(11) NOT NULL,
-  `Name` varchar(255) NOT NULL
+  `Name` varchar(255) NOT NULL,
+  `Location` varchar(255) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS `Host` (
 -- Table structure for table `IPLimit`
 --
 
-CREATE TABLE IF NOT EXISTS `IPLimit` (
+CREATE TABLE `IPLimit` (
   `IP` varchar(45) NOT NULL,
   `LastLoginAttemptDate` datetime DEFAULT NULL,
   `UsersAllowedCount` tinyint(4) NOT NULL,
@@ -77,7 +78,7 @@ CREATE TABLE IF NOT EXISTS `IPLimit` (
 -- Table structure for table `Note`
 --
 
-CREATE TABLE IF NOT EXISTS `Note` (
+CREATE TABLE `Note` (
 `NoteId` int(11) NOT NULL,
   `UserId` int(11) NOT NULL,
   `Text` varchar(140) NOT NULL,
@@ -87,7 +88,7 @@ CREATE TABLE IF NOT EXISTS `Note` (
   `Edited` tinyint(1) NOT NULL DEFAULT '0',
   `Deleted` tinyint(1) NOT NULL DEFAULT '0',
   `GroupId` int(11) NOT NULL
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
 
@@ -95,7 +96,7 @@ CREATE TABLE IF NOT EXISTS `Note` (
 -- Table structure for table `User`
 --
 
-CREATE TABLE IF NOT EXISTS `User` (
+CREATE TABLE `User` (
 `UserId` int(11) NOT NULL,
   `Handle` varchar(16) NOT NULL,
   `Status` varchar(140) NOT NULL DEFAULT '',
@@ -107,7 +108,7 @@ CREATE TABLE IF NOT EXISTS `User` (
   `PasswordHash` varchar(60) NOT NULL,
   `JoinedDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `IsDisabled` tinyint(1) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
 
@@ -115,9 +116,10 @@ CREATE TABLE IF NOT EXISTS `User` (
 -- Table structure for table `UserHost`
 --
 
-CREATE TABLE IF NOT EXISTS `UserHost` (
+CREATE TABLE `UserHost` (
   `UserId` int(11) NOT NULL,
   `HostId` int(11) NOT NULL,
+  `Nonce` varchar(50) NOT NULL,
   `Token` varchar(255) NOT NULL,
   `CreatedDate` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -128,7 +130,7 @@ CREATE TABLE IF NOT EXISTS `UserHost` (
 -- Table structure for table `UserToken`
 --
 
-CREATE TABLE IF NOT EXISTS `UserToken` (
+CREATE TABLE `UserToken` (
   `Token` varchar(50) NOT NULL,
   `UserId` int(11) NOT NULL,
   `LoginTime` date NOT NULL,
@@ -205,12 +207,12 @@ MODIFY `HostId` int(11) NOT NULL AUTO_INCREMENT;
 -- AUTO_INCREMENT for table `Note`
 --
 ALTER TABLE `Note`
-MODIFY `NoteId` int(11) NOT NULL AUTO_INCREMENT,AUTO_INCREMENT=3;
+MODIFY `NoteId` int(11) NOT NULL AUTO_INCREMENT;
 --
 -- AUTO_INCREMENT for table `User`
 --
 ALTER TABLE `User`
-MODIFY `UserId` int(11) NOT NULL AUTO_INCREMENT,AUTO_INCREMENT=20;
+MODIFY `UserId` int(11) NOT NULL AUTO_INCREMENT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

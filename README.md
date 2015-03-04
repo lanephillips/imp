@@ -2,17 +2,28 @@
 
 IMP is a Twitter-like service that is designed to be decentralized. In the same way that no single business can own all email or all websites, no single business can own all IMP accounts. Anyone can run an IMP host, and users on different hosts can connect with each other, because IMP is an open standard.
 
-<!-- TODO: Later:
 ## Service Discovery
 
 Usernames take the form of *handle*@*host*. However, it may not be convenient for the IMP service to run at the root of the host. Therefore a service discovery mechanism is proposed.
 
-For any IMP instance to be considered a host, the response to a GET request on the root path of the host must be an HTML page that contains the following LINK element in its HEAD element:
+Given the host name imp.example.com, a client searches for the service at these URLs in order:
 
-    <link rel="imp-api-prefix" href="/prefix"/>
+1. https://imp.example.com/
+2. https://imp.example.com:5039/
+3. http://imp.example.com/ (Note that this request is for discovery only. All IMP API requests must use HTTPS.)
 
-The value of the `href` attribute will be prepended onto all IMP API calls. This attribute may be an empty string.
--->
+IMP service providers should respond as early in the search as possible using one of the following:
+
+1. Include this HTTP header:
+
+    `IMP-API-Location: 0.9;imp.example.com/path/to/api`
+    
+2. Do a 301 redirect to the API location.
+3. Return an HTML page with the following meta tag in its head element:
+
+    `<meta http-equiv="IMP-API-Location" content="0.9;imp.example.com/path/to/api" />`
+
+Every response from an IMP service must include the `IMP-API-Location` header.
 
 ## Guest Authentication
 

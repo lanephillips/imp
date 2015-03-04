@@ -3,6 +3,11 @@ package main
 import "code.google.com/p/gcfg"
 
 type Config struct {
+	Api struct {
+		Host string
+		Version string
+		Location string
+	}
 	Server struct {
 		Host string
 		Port string
