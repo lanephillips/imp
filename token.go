@@ -129,21 +129,39 @@ func DeleteTokenHandler(rw http.ResponseWriter, r *http.Request) {
 
 func FetchToken(db *sqlx.DB, r *http.Request)  (*UserToken, error) {
 	auth := r.Header.Get("Authorization")
-	authPrefix := "IMP auth="
-	if !strings.HasPrefix(auth, authPrefix) {
-		return nil, nil
-	}
-	token := auth[len(authPrefix):]
+	userPrefix := "IMP user="
+	guestPrefix := "IMP guest="
 
-	t := new(UserToken)
-	err := db.Get(t, "SELECT `Token`, `UserId`, `LoginTime`, `LastSeenTime` FROM `UserToken` WHERE Token LIKE ? LIMIT 1", token)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	} else if err != nil {
-	    log.Println(err)
-	    return nil, err
+	if strings.HasPrefix(auth, userPrefix) {
+		token := auth[len(userPrefix):]
+
+		t := new(UserToken)
+		err := db.Get(t, "SELECT `Token`, `UserId`, `LoginTime`, `LastSeenTime` FROM `UserToken` WHERE Token LIKE ? LIMIT 1", token)
+		if err == sql.ErrNoRows {
+			return nil, nil
+		} else if err != nil {
+		    log.Println(err)
+		    return nil, err
+		}
+		return t, nil
 	}
-	return t, nil
+
+	if strings.HasPrefix(auth, guestPrefix) {
+		// token := auth[len(guestPrefix):]
+
+		// TODO: guest auth
+		// t := new(UserToken)
+		// err := db.Get(t, "SELECT `Token`, `UserId`, `LoginTime`, `LastSeenTime` FROM `UserToken` WHERE Token LIKE ? LIMIT 1", token)
+		// if err == sql.ErrNoRows {
+		// 	return nil, nil
+		// } else if err != nil {
+		//     log.Println(err)
+		//     return nil, err
+		// }
+		// return t, nil
+	}
+
+	return nil, nil
 }
 
 func MakeToken(db *sqlx.DB, user *User) (*UserToken, error) {
