@@ -15,7 +15,7 @@ Notes are limited to 140 characters in length, however, you do get a few freebie
 * Hashtags may be supported somehow, but they are counted for their full length.
 * A note can include a free "hat tip" or "via" mention, if you are allowed to mention the other user.
 
-Shortening of URLs and @-mentions are not a way to sneak in extra text, as only valid @-mentions get shortened, and client applications might not display the entire URL.
+Shortening of URLs and @-mentions is not a way to sneak in extra text, as only valid @-mentions get shortened, and client applications might not display the entire URL.
 
 Notes can be edited or deleted. Edited notes are flagged as such.
 
@@ -106,7 +106,7 @@ IMP service providers should respond as early in the search as possible using on
 
     `<meta http-equiv="IMP-API-Location" content="0.9;imp.example.com/path/to/api" />`
 
-Every response from an IMP service must include the `IMP-API-Location` header.
+Every response from an IMP service must include the `IMP-API-Location` header. 
 
 ## Guest Authentication
 
@@ -141,6 +141,18 @@ DELETE /token/{token}
 
 Delete an auth token.
 
+GET /user/{handle}/host/{host}
+
+Get user's guest auth token for the host.
+
+POST /guest
+
+Called on foreign host by a user's host to create a guest token.
+
+POST /user/{handle}/host
+
+Called on user's host by a foreign host to return a guest token.
+
 ### Users
 
 POST /user
@@ -151,11 +163,11 @@ Create a new user.
 
 GET /note
 
-Get the authenticated user's notes. 
+Get the authenticated user's notes. *NO!? That introduces state. The user should be a query parameter.*
 
 POST /note
 
-Create a new note from the authenticated user.
+Create a new note from the authenticated user. *Author should be a field in the note object, otherwise we're violating statelessness.*
 
 GET /note/{id}
 
@@ -168,6 +180,62 @@ Edit the text of an existing note.
 DELETE /note/{id}
 
 Delete the specified note.
+
+### Groups
+
+GET /group
+
+List groups. Users can only see the groups they own.
+
+POST /group
+
+Create a group with a name for a user.
+
+GET /group/{id}
+
+List the members of a group.
+
+PUT /group/{id}
+
+Edit group properties.
+
+DELETE /group/{id}
+
+Delete the group.
+
+PUT /group/{id}/{address}
+
+Add the address to the group.
+
+DELETE /group/{id}/{address}
+
+Remove the address from the group.
+
+### Mutes and Blocks
+
+GET /user/{handle}/mute
+
+List all the user's mutes. Only the authenticated user can see these.
+
+PUT /user/{handle}/mute/{address}
+
+Mute the user at *address*.
+
+DELETE /user/{handle}/mute/{address}
+
+Unmute the user at *address*.
+
+GET /user/{handle}/block
+
+List all the user's blocks. Only the authenticated user can see these.
+
+PUT /user/{handle}/block/{address}
+
+Block the user at *address*.
+
+DELETE /user/{handle}/block/{address}
+
+Unblock the user at *address*.
 
 ## To-Do List
 
