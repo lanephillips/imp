@@ -84,29 +84,41 @@ func main() {
     	sendData(rw, http.StatusOK, "")
 	})
 
-	r.HandleFunc("/user", PostUserHandler).Methods("POST")
-	// r.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
-	// 	// TODO: 
-	// }).Methods("GET")
-	// r.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
-	// 	// TODO: 
-	// }).Methods("PUT")
-	// r.HandleFunc("/user/{handle}", func (rw http.ResponseWriter, r *http.Request) {
-	// 	// TODO: 
-	// }).Methods("DELETE")
+	// authentication
+    r.HandleFunc("/token", PostTokenHandler).Methods("POST")
+    r.HandleFunc("/token/{token}", DeleteTokenHandler).Methods("DELETE")
 
+    // guest authentication
+    r.HandleFunc("/user/{handle}/host/{host}", GetUserHostHandler).Methods("GET")
+    r.HandleFunc("/user/{handle}/host", PostUserHostHandler).Methods("POST")
+    r.HandleFunc("/guest", PostGuestHandler).Methods("POST")
+
+    // users
+	r.HandleFunc("/user", PostUserHandler).Methods("POST")
+
+	// notes
 	r.HandleFunc("/note", ListNotesHandler).Methods("GET")
 	r.HandleFunc("/note", PostNoteHandler).Methods("POST")
 	r.HandleFunc("/note/{id}", GetNoteHandler).Methods("GET")
 	r.HandleFunc("/note/{id}", PutNoteHandler).Methods("PUT")
 	r.HandleFunc("/note/{id}", DeleteNoteHandler).Methods("DELETE")
 
-    r.HandleFunc("/token", PostTokenHandler).Methods("POST")
-    r.HandleFunc("/token/{token}", DeleteTokenHandler).Methods("DELETE")
+	// groups
+	r.HandleFunc("/group", NotImplementedHandler).Methods("GET")
+	r.HandleFunc("/group", NotImplementedHandler).Methods("POST")
+	r.HandleFunc("/group/{id}", NotImplementedHandler).Methods("GET")
+	r.HandleFunc("/group/{id}", NotImplementedHandler).Methods("PUT")
+	r.HandleFunc("/group/{id}", NotImplementedHandler).Methods("DELETE")
+	r.HandleFunc("/group/{id}/{address}", NotImplementedHandler).Methods("PUT")
+	r.HandleFunc("/group/{id}/{address}", NotImplementedHandler).Methods("DELETE")
 
-    r.HandleFunc("/user/{handle}/host/{host}", GetUserHostHandler).Methods("GET")
-    r.HandleFunc("/user/{handle}/host", PostUserHostHandler).Methods("POST")
-    r.HandleFunc("/guest", PostGuestHandler).Methods("POST")
+	// mutes and blocks
+	r.HandleFunc("/user/{handle}/mute", NotImplementedHandler).Methods("GET")
+	r.HandleFunc("/user/{handle}/mute/{address}", NotImplementedHandler).Methods("PUT")
+	r.HandleFunc("/user/{handle}/mute/{address}", NotImplementedHandler).Methods("DELETE")
+	r.HandleFunc("/user/{handle}/block", NotImplementedHandler).Methods("GET")
+	r.HandleFunc("/user/{handle}/block/{address}", NotImplementedHandler).Methods("PUT")
+	r.HandleFunc("/user/{handle}/block/{address}", NotImplementedHandler).Methods("DELETE")
 
     // Heroku uses env var to specify port
     port := os.Getenv("PORT")
@@ -121,3 +133,8 @@ func main() {
     log.Println("Listening on " + hostname + ".")
 	http.ListenAndServeTLS(hostname, cfg.Server.Certificate, cfg.Server.Key, r)
 }
+
+func NotImplementedHandler(rw http.ResponseWriter, r *http.Request) {
+	sendError(rw, http.StatusNotImplemented, "Not Implemented")
+}
+
